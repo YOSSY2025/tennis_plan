@@ -4,6 +4,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, date, timedelta
 import calendar
+from your_module import safe_parse_date_series  # Assuming safe_parse_date_series is defined globally
 import os
 import uuid
 import re
@@ -77,33 +78,11 @@ def valid_time_str(t):
     m = re.match(TIME_REGEX, t.strip())
     if not m: return False
     hh, mm = int(m.group(1)), int(m.group(2))
-    return (mm % 10) == 0
+                # show events for this day and render modal
 
 def overlaps(existing_df, target_date, start, end, exclude_id=None):
     """同じ施設で時間帯重複チェック（単純判定）"""
-    ed = existing_df.copy()
-    # parse dates safely to avoid overflow for numeric epoch formats
-    if 'date' in ed.columns:
-        try:
-            ed["date"] = safe_parse_date_series(ed["date"])
-        except Exception:
-            # fallback: coerce and drop unparsable
-            ed["date"] = pd.to_datetime(ed.get("date", pd.Series([], dtype=str)), errors='coerce').dt.date
-    ed = ed[ed["date"] == target_date]
-    if exclude_id:
-        ed = ed[ed["id"] != exclude_id]
-    for _, r in ed.iterrows():
-        s = r["start_time"]
-        e = r["end_time"]
-        if s == "" or e == "": continue
-        if not valid_time_str(s) or not valid_time_str(e): continue
-        if not (end <= s or start >= e):
-            return True
-    return False
-
-# ---------- セッション初期化 ----------
-if "refresh" not in st.session_state:
-    st.session_state.refresh = 0
+                    # use global safe parser
 
 # ---------- レイアウトCSS ----------
 st.markdown("""
@@ -124,11 +103,9 @@ body { background-color: #ffffff; }
     min-height: 100px;
     flex: 1;
     position: relative;
-}
-.day-cell:last-child { border-right: none; }
-.weekday-header {
-    padding: 8px 0;
-    text-align: center;
+                        key = f"view-{ev['id']}"
+                        if st.button("編集", key=key):
+                            render_edit_modal(day, ev["id"])
     font-weight: 700;
     border-bottom: 1px solid #e0e0e0;
     background: #f8f9fa;
