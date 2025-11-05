@@ -30,7 +30,34 @@ def ensure_data_dir():
 
 def load_entries():
     ensure_data_dir()
-    return pd.read_csv(DATA_FILE, parse_dates=["date","created_at"], dtype=str)
+    # read everything as string to avoid pandas auto-parsing surprises
+    return pd.read_csv(DATA_FILE, dtype=str)
+
+
+def safe_parse_date_series(s):
+    """Parse a Series containing dates that may be ISO strings or epoch numbers in s/ms/us/ns.
+    Returns a Series of python date objects (or NaT converted to NaN via pandas NaT -> None).
+    """
+    s = s.fillna("").astype(str).str.strip()
+    is_digits = s.str.fullmatch(r"\d+")
+    parsed = pd.Series(pd.NaT, index=s.index, dtype='datetime64[ns]')
+    if is_digits.any():
+        nums = pd.to_numeric(s[is_digits], errors='coerce')
+        if not nums.empty:
+            maxv = int(nums.max())
+            if maxv >= 10**17:
+                unit = 'ns'
+            elif maxv >= 10**14:
+                unit = 'us'
+            elif maxv >= 10**11:
+                unit = 'ms'
+            else:
+                unit = 's'
+            parsed.loc[is_digits] = pd.to_datetime(nums.astype('int64'), unit=unit, errors='coerce')
+    non_digits = ~is_digits
+    if non_digits.any():
+        parsed.loc[non_digits] = pd.to_datetime(s[non_digits].replace('', pd.NaT), errors='coerce')
+    return parsed.dt.date
 
 def save_entries(df):
     ensure_data_dir()
@@ -55,7 +82,13 @@ def valid_time_str(t):
 def overlaps(existing_df, target_date, start, end, exclude_id=None):
     """同じ施設で時間帯重複チェック（単純判定）"""
     ed = existing_df.copy()
-    ed["date"] = pd.to_datetime(ed["date"]).dt.date
+    # parse dates safely to avoid overflow for numeric epoch formats
+    if 'date' in ed.columns:
+        try:
+            ed["date"] = safe_parse_date_series(ed["date"])
+        except Exception:
+            # fallback: coerce and drop unparsable
+            ed["date"] = pd.to_datetime(ed.get("date", pd.Series([], dtype=str)), errors='coerce').dt.date
     ed = ed[ed["date"] == target_date]
     if exclude_id:
         ed = ed[ed["id"] != exclude_id]
@@ -245,7 +278,36 @@ for wk in range(0, len(month_days), 7):
             # show events for this day
             day_entries = df.copy()
             if not day_entries.empty:
-                day_entries['date'] = pd.to_datetime(day_entries['date']).dt.date
+                # safe parse 'date' column: handle ISO strings or epoch numbers (s/ms/us/ns)
+                def safe_parse_date_series(s):
+                    s = s.fillna("").astype(str).str.strip()
+                    # mask of pure digits
+                    is_digits = s.str.fullmatch(r"\d+")
+                    parsed = pd.Series(pd.NaT, index=s.index, dtype='datetime64[ns]')
+                    if is_digits.any():
+                        nums = pd.to_numeric(s[is_digits], errors='coerce')
+                        if not nums.empty:
+                            maxv = int(nums.max())
+                            # decide unit
+                            if maxv >= 10**17:
+                                unit = 'ns'
+                            elif maxv >= 10**14:
+                                unit = 'us'
+                            elif maxv >= 10**11:
+                                unit = 'ms'
+                            else:
+                                unit = 's'
+                            parsed.loc[is_digits] = pd.to_datetime(nums.astype('int64'), unit=unit, errors='coerce')
+                    # parse non-digit strings
+                    non_digits = ~is_digits
+                    if non_digits.any():
+                        parsed.loc[non_digits] = pd.to_datetime(s[non_digits].replace('', pd.NaT), errors='coerce')
+                    return parsed.dt.date
+
+                # if 'date' column missing, create empty
+                if 'date' not in day_entries.columns:
+                    day_entries['date'] = ""
+                day_entries['date'] = safe_parse_date_series(day_entries['date'])
                 day_entries = day_entries[day_entries['date'] == day]
                 if f_facility:
                     day_entries = day_entries[day_entries['facility'].str.contains(f_facility, na=False)]
