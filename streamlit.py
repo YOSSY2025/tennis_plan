@@ -4,7 +4,6 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, date, timedelta
 import calendar
-from your_module import safe_parse_date_series  # Assuming safe_parse_date_series is defined globally
 import os
 import uuid
 import re
@@ -31,34 +30,7 @@ def ensure_data_dir():
 
 def load_entries():
     ensure_data_dir()
-    # read everything as string to avoid pandas auto-parsing surprises
-    return pd.read_csv(DATA_FILE, dtype=str)
-
-
-def safe_parse_date_series(s):
-    """Parse a Series containing dates that may be ISO strings or epoch numbers in s/ms/us/ns.
-    Returns a Series of python date objects (or NaT converted to NaN via pandas NaT -> None).
-    """
-    s = s.fillna("").astype(str).str.strip()
-    is_digits = s.str.fullmatch(r"\d+")
-    parsed = pd.Series(pd.NaT, index=s.index, dtype='datetime64[ns]')
-    if is_digits.any():
-        nums = pd.to_numeric(s[is_digits], errors='coerce')
-        if not nums.empty:
-            maxv = int(nums.max())
-            if maxv >= 10**17:
-                unit = 'ns'
-            elif maxv >= 10**14:
-                unit = 'us'
-            elif maxv >= 10**11:
-                unit = 'ms'
-            else:
-                unit = 's'
-            parsed.loc[is_digits] = pd.to_datetime(nums.astype('int64'), unit=unit, errors='coerce')
-    non_digits = ~is_digits
-    if non_digits.any():
-        parsed.loc[non_digits] = pd.to_datetime(s[non_digits].replace('', pd.NaT), errors='coerce')
-    return parsed.dt.date
+    return pd.read_csv(DATA_FILE, parse_dates=["date","created_at"], dtype=str)
 
 def save_entries(df):
     ensure_data_dir()
@@ -73,16 +45,84 @@ def to_date(d):
         return d
     return None
 
+def safe_parse_date_series(s):
+    """安全に日付をパースして datetime.date を返すシリーズを返す。
+    - 数字のみの文字列は桁数に応じて秒/ms/us/ns を順に試す
+    - ISO 文字列や他の表記は pandas の to_datetime にフォールバック
+    - 成功しなければ NaT にする
+    """
+    def parse_one(x):
+        if pd.isna(x):
+            return pd.NaT
+        # accept datetime/date/Timestamp directly
+        if isinstance(x, (pd.Timestamp, datetime)):
+            return pd.Timestamp(x)
+        if isinstance(x, date):
+            return pd.Timestamp(x)
+        s = str(x).strip()
+        if s == "":
+            return pd.NaT
+        # numeric epoch-like
+        if re.fullmatch(r"\d+", s):
+            try:
+                iv = int(s)
+            except Exception:
+                return pd.NaT
+            # try units in order that commonly succeed for large ints
+            for unit in ("ns", "us", "ms", "s"):
+                try:
+                    t = pd.to_datetime(iv, unit=unit, errors="coerce")
+                except (OverflowError, ValueError):
+                    t = pd.NaT
+                if not pd.isna(t):
+                    # sanity: year between 1970 and 2100
+                    try:
+                        y = int(t.year)
+                    except Exception:
+                        y = None
+                    if y and 1970 <= y <= 2100:
+                        return t
+            return pd.NaT
+        # fallback to pandas parser
+        try:
+            t = pd.to_datetime(s, errors="coerce")
+            return t
+        except Exception:
+            return pd.NaT
+
+    parsed = [parse_one(v) for v in s]
+    # ensure we have a Series so .dt is available
+    parsed = pd.to_datetime(pd.Series(parsed), errors="coerce")
+    # return series of python date objects where possible
+    return parsed.dt.date
+
 def valid_time_str(t):
     if not isinstance(t, str): return False
     m = re.match(TIME_REGEX, t.strip())
     if not m: return False
     hh, mm = int(m.group(1)), int(m.group(2))
-                # show events for this day and render modal
+    return (mm % 10) == 0
 
 def overlaps(existing_df, target_date, start, end, exclude_id=None):
     """同じ施設で時間帯重複チェック（単純判定）"""
-                    # use global safe parser
+    ed = existing_df.copy()
+    # safe parse to avoid OutOfBoundsDatetime for malformed/epoch values
+    ed["date"] = safe_parse_date_series(ed["date"]) 
+    ed = ed[ed["date"] == target_date]
+    if exclude_id:
+        ed = ed[ed["id"] != exclude_id]
+    for _, r in ed.iterrows():
+        s = r["start_time"]
+        e = r["end_time"]
+        if s == "" or e == "": continue
+        if not valid_time_str(s) or not valid_time_str(e): continue
+        if not (end <= s or start >= e):
+            return True
+    return False
+
+# ---------- セッション初期化 ----------
+if "refresh" not in st.session_state:
+    st.session_state.refresh = 0
 
 # ---------- レイアウトCSS ----------
 st.markdown("""
@@ -103,9 +143,11 @@ body { background-color: #ffffff; }
     min-height: 100px;
     flex: 1;
     position: relative;
-                        key = f"view-{ev['id']}"
-                        if st.button("編集", key=key):
-                            render_edit_modal(day, ev["id"])
+}
+.day-cell:last-child { border-right: none; }
+.weekday-header {
+    padding: 8px 0;
+    text-align: center;
     font-weight: 700;
     border-bottom: 1px solid #e0e0e0;
     background: #f8f9fa;
@@ -255,35 +297,7 @@ for wk in range(0, len(month_days), 7):
             # show events for this day
             day_entries = df.copy()
             if not day_entries.empty:
-                # safe parse 'date' column: handle ISO strings or epoch numbers (s/ms/us/ns)
-                def safe_parse_date_series(s):
-                    s = s.fillna("").astype(str).str.strip()
-                    # mask of pure digits
-                    is_digits = s.str.fullmatch(r"\d+")
-                    parsed = pd.Series(pd.NaT, index=s.index, dtype='datetime64[ns]')
-                    if is_digits.any():
-                        nums = pd.to_numeric(s[is_digits], errors='coerce')
-                        if not nums.empty:
-                            maxv = int(nums.max())
-                            # decide unit
-                            if maxv >= 10**17:
-                                unit = 'ns'
-                            elif maxv >= 10**14:
-                                unit = 'us'
-                            elif maxv >= 10**11:
-                                unit = 'ms'
-                            else:
-                                unit = 's'
-                            parsed.loc[is_digits] = pd.to_datetime(nums.astype('int64'), unit=unit, errors='coerce')
-                    # parse non-digit strings
-                    non_digits = ~is_digits
-                    if non_digits.any():
-                        parsed.loc[non_digits] = pd.to_datetime(s[non_digits].replace('', pd.NaT), errors='coerce')
-                    return parsed.dt.date
-
-                # if 'date' column missing, create empty
-                if 'date' not in day_entries.columns:
-                    day_entries['date'] = ""
+                # parse dates safely to avoid overflow when csv contains large numeric timestamps
                 day_entries['date'] = safe_parse_date_series(day_entries['date'])
                 day_entries = day_entries[day_entries['date'] == day]
                 if f_facility:
