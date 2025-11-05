@@ -80,11 +80,84 @@ body { background-color: #ffffff; }
 .header { display:flex; align-items:center; justify-content:space-between; }
 .app-title { font-size:22px; font-weight:700; color:#116466; }
 .sub { color:var(--muted); font-size:13px; }
-.day-cell { border-radius:8px; padding:8px; margin:6px 0; background: #fff; box-shadow: 0 6px 14px rgba(0,0,0,0.04); }
-.event-pill { padding:6px 8px; border-radius:8px; color:#111; font-weight:600; margin-bottom:6px; display:block; }
-.small { font-size:13px; color:#444; }
+/* カレンダーグリッド */
+.calendar-grid { border: 1px solid #e0e0e0; margin-top: 1rem; }
+.week-row { display: flex; border-bottom: 1px solid #e0e0e0; }
+.week-row:last-child { border-bottom: none; }
+.day-cell { 
+    padding: 6px; 
+    background: #fff; 
+    border-right: 1px solid #e0e0e0;
+    min-height: 100px;
+    flex: 1;
+    position: relative;
+}
+.day-cell:last-child { border-right: none; }
+.weekday-header {
+    padding: 8px 0;
+    text-align: center;
+    font-weight: 700;
+    border-bottom: 1px solid #e0e0e0;
+    background: #f8f9fa;
+}
+.sunday { color: #e74c3c; }
+.saturday { color: #3498db; }
+/* イベントスタイル */
+.event-pill {
+    padding: 4px 6px;
+    border-radius: 4px;
+    margin-bottom: 4px;
+    font-size: 12px;
+    line-height: 1.4;
+}
+.event-time {
+    font-weight: 700;
+    font-size: 11px;
+}
+.event-status {
+    font-size: 11px;
+    opacity: 0.9;
+}
+.event-meta {
+    font-size: 11px;
+    color: #333;
+    margin-top: 2px;
+}
+/* ボタン */
+.day-cell button.date-btn {
+    background: none !important;
+    border: none !important;
+    padding: 4px !important;
+    margin: 0 !important;
+    font-size: 14px !important;
+    color: inherit !important;
+    cursor: pointer;
+    display: block;
+    width: 100%;
+    text-align: center !important;
+}
+.day-cell button.date-btn:hover {
+    background: #f8f9fa !important;
+}
+.other-month {
+    color: #bbb !important;
+    background: #fafafa;
+}
+.today button.date-btn {
+    font-weight: 700 !important;
+    color: #fff !important;
+    background: #116466 !important;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    line-height: 24px;
+    margin: 0 auto !important;
+}
+.small { font-size: 12px; color: #666; }
 @media (max-width:600px){
   .app-title { font-size:18px; }
+  .day-cell { min-height: 80px; padding: 4px; }
+  .event-pill { font-size: 11px; }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -131,6 +204,15 @@ if show_legend:
     cols[1].markdown(f'<div style="background:{STATUS_COLORS["抽選中"]};padding:6px;border-radius:8px;font-weight:700">抽選中</div>', unsafe_allow_html=True)
     cols[2].markdown(f'<div style="background:{STATUS_COLORS["中止"]};padding:6px;border-radius:8px;font-weight:700">中止</div>', unsafe_allow_html=True)
 
+# ---------- カレンダーヘッダー（曜日） ----------
+st.markdown("<div class='calendar-grid'>", unsafe_allow_html=True)
+weekdays = ["日", "月", "火", "水", "木", "金", "土"]
+cols = st.columns(7)
+for i, day in enumerate(weekdays):
+    with cols[i]:
+        css_class = "sunday" if i == 0 else "saturday" if i == 6 else ""
+        st.markdown(f"<div class='weekday-header {css_class}'>{day}</div>", unsafe_allow_html=True)
+
 # build calendar grid
 year, month = st.session_state.year_month
 cal = calendar.Calendar(firstweekday=6)  # Sunday start
@@ -139,16 +221,27 @@ month_days = list(cal.itermonthdates(year, month))
 # render month day cells
 for wk in range(0, len(month_days), 7):
     week = month_days[wk:wk+7]
+    st.markdown("<div class='week-row'>", unsafe_allow_html=True)
     cols = st.columns(7)
     for i, day in enumerate(week):
         with cols[i]:
-            # header for each day
+            css_class = "sunday" if i == 0 else "saturday" if i == 6 else ""
+            if day == today:
+                css_class += " today"
             if day.month != month:
-                st.markdown(f"<div class='small' style='color:#bbb'>{day.day}</div>", unsafe_allow_html=True)
+                css_class += " other-month"
+            st.markdown(f"<div class='day-cell {css_class}'>", unsafe_allow_html=True)
+            
+            # 日付表示（当月のみクリック可能）
+            if day.month != month:
+                st.markdown(f"<div style='text-align:center'>{day.day}</div>", unsafe_allow_html=True)
             else:
-                st.markdown(f"<div class='small' style='font-weight:700'>{day.day} ({calendar.day_name[day.weekday()][:3]})</div>", unsafe_allow_html=True)
-            # card for events
-            st.markdown("<div class='day-cell'>", unsafe_allow_html=True)
+                day_key = f"day-{day.isoformat()}"
+                if st.button(str(day.day), key=day_key, kwargs={"class": "date-btn"}):
+                    st.session_state.selected_id = None
+                    st.session_state.selected_date = day
+                    st.session_state.open_editor = True
+
             # show events for this day
             day_entries = df.copy()
             if not day_entries.empty:
@@ -158,26 +251,27 @@ for wk in range(0, len(month_days), 7):
                     day_entries = day_entries[day_entries['facility'].str.contains(f_facility, na=False)]
                 if f_nick:
                     day_entries = day_entries[day_entries['nick'].str.contains(f_nick, na=False)]
-            if day_entries.empty:
-                st.markdown("<div class='small' style='color:#999'>予定なし</div>", unsafe_allow_html=True)
-            else:
-                # list items (max 4, show more link)
+
+            if not day_entries.empty:
                 for idx, ev in day_entries.sort_values(["start_time"]).iterrows():
                     color = STATUS_COLORS.get(ev["status"], "#eeeeee")
-                    text = f'{ev["start_time"]}-{ev["end_time"]} {ev["facility"]} / {ev["nick"]}'
-                    # clickable: use st.button with unique key to open editor
+                    pill_html = (
+                        f"<div class='event-pill' style='background:{color};'>"
+                        f"<div class='event-time'>{ev['start_time']}-{ev['end_time']}</div>"
+                        f"<div class='event-meta'>{ev['facility']}</div>"
+                        f"<div class='event-status'>{ev['status']}</div>"
+                        f"</div>"
+                    )
+                    st.markdown(pill_html, unsafe_allow_html=True)
                     key = f"view-{ev['id']}"
-                    if st.button(text, key=key):
+                    if st.button("編集", key=key):
                         st.session_state.selected_id = ev["id"]
                         st.session_state.selected_date = day
                         st.session_state.open_editor = True
-            # add new button
-            add_key = f"add-{day.isoformat()}"
-            if st.button("＋ 追加", key=add_key):
-                st.session_state.selected_id = None
-                st.session_state.selected_date = day
-                st.session_state.open_editor = True
+
             st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+st.markdown("</div>", unsafe_allow_html=True)  # close calendar-grid
 
 # ---------- Editor modal (side area) ----------
 if "open_editor" not in st.session_state:
@@ -270,6 +364,6 @@ if st.session_state.open_editor:
 # ---------- Footer / tips ----------
 st.markdown("---")
 st.markdown("#### 操作メモ")
-st.markdown("- 日付の「＋追加」を押すとその日付で新規登録できます。")
+st.markdown("- 日付を押すとその日付で新規登録できます。")
 st.markdown("- 時刻はHH:MM形式で**10分単位**（例 09:10, 14:30）で入力してください。")
 st.markdown("- データはリポジトリの `data/entries.csv` に保存されます。バックアップを定期的に行ってください。")
