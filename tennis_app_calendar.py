@@ -2,7 +2,19 @@
 """Main Streamlit app moved here to avoid naming collision with the streamlit package.
 Run this via: streamlit run streamlit.py  (streamlit.py is a small shim)
 """
-import streamlit as st
+import sys
+import importlib
+import os as _os
+# Import the real `streamlit` package even if a local file named
+# `streamlit.py` exists in the project directory by temporarily
+# removing the project directory from sys.path while importing.
+_THIS_DIR = _os.path.dirname(__file__)
+if _THIS_DIR in sys.path:
+    sys.path.remove(_THIS_DIR)
+_streamlit_pkg = importlib.import_module("streamlit")
+# restore path
+sys.path.insert(0, _THIS_DIR)
+st = _streamlit_pkg
 import pandas as pd
 from datetime import datetime, date, timedelta
 import calendar
@@ -134,84 +146,38 @@ body { background-color: #ffffff; }
 .header { display:flex; align-items:center; justify-content:space-between; }
 .app-title { font-size:22px; font-weight:700; color:#116466; }
 .sub { color:var(--muted); font-size:13px; }
-/* カレンダーグリッド */
-.calendar-grid { border: 1px solid #e0e0e0; margin-top: 1rem; }
-.week-row { display: flex; border-bottom: 1px solid #e0e0e0; }
-.week-row:last-child { border-bottom: none; }
+/* Google カレンダー風 月表示 */
+.calendar-grid { border: 1px solid #e0e0e0; margin-top: 1rem; display:block; }
+.weekday-row { display:flex; }
+.weekday-header { flex:1; padding:10px; text-align:center; font-weight:700; background:#fafafa; border-bottom:1px solid #e6e6e6; }
+.month-body { display:block; }
+.week-row { display:flex; }
 .day-cell { 
-    padding: 6px; 
+    padding: 6px 8px; 
     background: #fff; 
-    border-right: 1px solid #e0e0e0;
-    min-height: 100px;
-    flex: 1;
+    border-right: 1px solid #e9e9e9;
+    border-bottom: 1px solid #e9e9e9;
+    min-height: 140px;
+    flex: 1 0 0;
     position: relative;
+    display:flex;
+    flex-direction:column;
 }
 .day-cell:last-child { border-right: none; }
-.weekday-header {
-    padding: 8px 0;
-    text-align: center;
-    font-weight: 700;
-    border-bottom: 1px solid #e0e0e0;
-    background: #f8f9fa;
-}
-.sunday { color: #e74c3c; }
-.saturday { color: #3498db; }
-/* イベントスタイル */
-.event-pill {
-    padding: 4px 6px;
-    border-radius: 4px;
-    margin-bottom: 4px;
-    font-size: 12px;
-    line-height: 1.4;
-}
-.event-time {
-    font-weight: 700;
-    font-size: 11px;
-}
-.event-status {
-    font-size: 11px;
-    opacity: 0.9;
-}
-.event-meta {
-    font-size: 11px;
-    color: #333;
-    margin-top: 2px;
-}
-/* ボタン */
-.day-cell button.date-btn {
-    background: none !important;
-    border: none !important;
-    padding: 4px !important;
-    margin: 0 !important;
-    font-size: 14px !important;
-    color: inherit !important;
-    cursor: pointer;
-    display: block;
-    width: 100%;
-    text-align: center !important;
-}
-.day-cell button.date-btn:hover {
-    background: #f8f9fa !important;
-}
-.other-month {
-    color: #bbb !important;
-    background: #fafafa;
-}
-.today button.date-btn {
-    font-weight: 700 !important;
-    color: #fff !important;
-    background: #116466 !important;
-    border-radius: 50%;
-    width: 24px;
-    height: 24px;
-    line-height: 24px;
-    margin: 0 auto !important;
-}
-.small { font-size: 12px; color: #666; }
-@media (max-width:600px){
-  .app-title { font-size:18px; }
-  .day-cell { min-height: 80px; padding: 4px; }
-  .event-pill { font-size: 11px; }
+.other-month { color: #bfbfbf; background:#fbfbfb; }
+.day-number { position:absolute; top:6px; left:6px; width:28px; height:28px; line-height:28px; text-align:center; border-radius:50%; font-weight:700; color:#333; }
+.today .day-number { background:#116466; color:#fff; }
+.day-header { padding-left:44px; padding-top:4px; }
+.day-events { margin-top:8px; overflow-y:auto; flex:1 1 auto; padding-right:4px; }
+.event-pill { display:block; padding:6px 8px; border-radius:6px; margin:6px 4px; font-size:12px; color:#111; }
+.event-time { font-weight:700; font-size:12px; }
+.event-meta { font-size:11px; color:#333; }
+.event-status { font-size:11px; opacity:0.95; }
+.event-more { color:#666; font-size:12px; padding:4px 8px; }
+/* button styling */
+.date-btn { background:none; border:none; cursor:pointer; font-size:14px; }
+@media (max-width:900px){
+  .day-cell { min-height:110px; }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -285,16 +251,20 @@ for wk in range(0, len(month_days), 7):
             if day.month != month:
                 css_class += " other-month"
             st.markdown(f"<div class='day-cell {css_class}'>", unsafe_allow_html=True)
-            
-            # 日付表示（当月のみクリック可能）
+
+            # 日付バッジ（常に表示）
+            st.markdown(f"<div class='day-number'>{day.day}</div>", unsafe_allow_html=True)
+
+            # 当月以外は薄く表示して日付文字を右寄せで表示
             if day.month != month:
-                st.markdown(f"<div style='text-align:center'>{day.day}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='day-header'><div style='color:#999;text-align:left;padding-left:44px'>{day.strftime('%Y-%m-%d')}</div></div>", unsafe_allow_html=True)
             else:
+                # クリックで編集モーダルを開く（見た目はバッジで表現）
                 day_key = f"day-{day.isoformat()}"
-                if st.button(str(day.day), key=day_key, kwargs={"class": "date-btn"}):
+                if st.button("", key=day_key):
                     st.session_state.selected_id = None
                     st.session_state.selected_date = day
-                    st.session_state.open_editor = True
+                    st.session_state.show_modal = True
 
             # show events for this day
             day_entries = df.copy()
@@ -308,6 +278,7 @@ for wk in range(0, len(month_days), 7):
                     day_entries = day_entries[day_entries['nick'].str.contains(f_nick, na=False)]
 
             if not day_entries.empty:
+                st.markdown("<div class='day-events'>", unsafe_allow_html=True)
                 for idx, ev in day_entries.sort_values(["start_time"]).iterrows():
                     color = STATUS_COLORS.get(ev["status"], "#eeeeee")
                     pill_html = (
@@ -322,26 +293,22 @@ for wk in range(0, len(month_days), 7):
                     if st.button("編集", key=key):
                         st.session_state.selected_id = ev["id"]
                         st.session_state.selected_date = day
-                        st.session_state.open_editor = True
+                        st.session_state.show_modal = True
+                st.markdown("</div>", unsafe_allow_html=True)
 
             st.markdown("</div>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 st.markdown("</div>", unsafe_allow_html=True)  # close calendar-grid
 
 # ---------- Editor modal (side area) ----------
-if "open_editor" not in st.session_state:
-    st.session_state.open_editor = False
+if "show_modal" not in st.session_state:
+    st.session_state.show_modal = False
 
-if st.session_state.open_editor:
-    st.markdown("---")
-    sel_date = st.session_state.get("selected_date", date.today())
-    st.markdown(f"### {sel_date.isoformat()} の予約編集")
+def render_edit_modal(sel_date, sel_id=None):
     # load fresh df
-    df = load_entries()
-    # if editing existing
-    sel_id = st.session_state.get("selected_id", None)
+    df_local = load_entries()
     if sel_id:
-        row = df[df["id"] == sel_id].iloc[0]
+        row = df_local[df_local["id"] == sel_id].iloc[0]
         facility_val = row["facility"]
         start_val = row["start_time"]
         end_val = row["end_time"]
@@ -354,36 +321,33 @@ if st.session_state.open_editor:
         nick_val = ""
         status_val = "抽選中"
 
-    with st.form("edit_form"):
-        facility = st.text_input("施設名（直接入力）", value=facility_val)
-        col_a, col_b = st.columns(2)
-        with col_a:
-            start_time = st.text_input("開始時刻（HH:MM、10分単位）", value=start_val)
-        with col_b:
-            end_time = st.text_input("終了時刻（HH:MM、10分単位）", value=end_val)
-        nick = st.text_input("担当者（ニックネーム）", value=nick_val)
-        status = st.selectbox("状態", options=["確保","抽選中","中止"], index=["確保","抽選中","中止"].index(status_val) if status_val in ["確保","抽選中","中止"] else 1)
-        submitted = st.form_submit_button("保存")
-        delete_btn = st.form_submit_button("削除")
-        cancel_btn = st.form_submit_button("キャンセル")
+    with st.modal("予約編集", clear_on_close=False):
+        st.markdown(f"### {sel_date.isoformat()} の予約編集")
+        with st.form("edit_form"):
+            facility = st.text_input("施設名（直接入力）", value=facility_val)
+            col_a, col_b = st.columns(2)
+            with col_a:
+                start_time = st.text_input("開始時刻（HH:MM、10分単位）", value=start_val)
+            with col_b:
+                end_time = st.text_input("終了時刻（HH:MM、10分単位）", value=end_val)
+            nick = st.text_input("担当者（ニックネーム）", value=nick_val)
+            status = st.selectbox("状態", options=["確保","抽選中","中止"], index=["確保","抽選中","中止"].index(status_val) if status_val in ["確保","抽選中","中止"] else 1)
+            submitted = st.form_submit_button("保存")
+            delete_btn = st.form_submit_button("削除")
+            cancel_btn = st.form_submit_button("キャンセル")
 
-        if submitted:
-            # validation
-            if not facility.strip():
-                st.error("施設名を入力してください。")
-            elif not valid_time_str(start_time) or not valid_time_str(end_time):
-                st.error("時刻はHH:MM形式かつ10分単位で入力してください（例 09:10）。")
-            else:
-                # check start < end
-                if start_time >= end_time:
+            if submitted:
+                if not facility.strip():
+                    st.error("施設名を入力してください。")
+                elif not valid_time_str(start_time) or not valid_time_str(end_time):
+                    st.error("時刻はHH:MM形式かつ10分単位で入力してください（例 09:10）。")
+                elif start_time >= end_time:
                     st.error("開始時刻は終了時刻より前にしてください。")
                 else:
-                    # overlap check
-                    if overlaps(df, sel_date, start_time, end_time, exclude_id=sel_id):
+                    if overlaps(df_local, sel_date, start_time, end_time, exclude_id=sel_id):
                         st.warning("時間が他の予定と重複しています。問題なければ保存してください（重複検出のみ）。")
-                    # save
                     if sel_id:
-                        df.loc[df["id"] == sel_id, ["facility","date","start_time","end_time","nick","status"]] = [
+                        df_local.loc[df_local["id"] == sel_id, ["facility","date","start_time","end_time","nick","status"]] = [
                             facility, sel_date.isoformat(), start_time, end_time, nick, status
                         ]
                     else:
@@ -398,23 +362,22 @@ if st.session_state.open_editor:
                             "status": status,
                             "created_at": datetime.now().isoformat()
                         }
-                        df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
-                    save_entries(df)
+                        df_local = pd.concat([df_local, pd.DataFrame([new_row])], ignore_index=True)
+                    save_entries(df_local)
                     st.success("保存しました。")
-                    st.session_state.open_editor = False
-                    st.session_state.refresh += 1
+                    st.session_state.show_modal = False
                     st.experimental_rerun()
 
-        if delete_btn and sel_id:
-            df = df[df["id"] != sel_id]
-            save_entries(df)
-            st.success("削除しました。")
-            st.session_state.open_editor = False
-            st.experimental_rerun()
+            if delete_btn and sel_id:
+                df_local = df_local[df_local["id"] != sel_id]
+                save_entries(df_local)
+                st.success("削除しました。")
+                st.session_state.show_modal = False
+                st.experimental_rerun()
 
-        if cancel_btn:
-            st.session_state.open_editor = False
-            st.experimental_rerun()
+            if cancel_btn:
+                st.session_state.show_modal = False
+                st.experimental_rerun()
 
 # ---------- Footer / tips ----------
 st.markdown("---")
