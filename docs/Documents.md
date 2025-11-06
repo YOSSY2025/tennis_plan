@@ -22,8 +22,7 @@ project_root/
 │   ├─ BACKLOG.md         # プロダクトバックログ
 │   ├─ DATA_SPEC.md       # データ仕様書
 │   ├─ DEVELOPMENT.md     # 開発手順書
-│   ├─ UI_FLOW.md         # UIフロー図
-│   └─ DOCUMENTS.md       # 構成管理ファイル
+│   ├─ UI_FLOW.md         # UIフロ│   └─ DOCUMENTS.md       # 構成管理ファイル
 ├─ src/                 # アプリソースコード
 │   └─ tennis_app.py
 ├─ data/                # CSVデータ（予約データ保存用）
