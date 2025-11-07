@@ -1,106 +1,124 @@
 import streamlit as st
-from st_aggrid import AgGrid
-from datetime import date, datetime, timedelta
-from streamlit_fullcalendar import FullCalendar
-
-# -------------------------------
-# データサンプル
-# サンプル予約データ
-# -------------------------------
-# 予約データ（本来はCSVなどから読み込む）
-reservations = [
-    {"date": date(2025, 11, 7), "status": "確保", "participants": 3, "absent": 1},
-    {"date": date(2025, 11, 10), "status": "抽選中", "participants": 0, "absent": 0},
-@ -14,62 +13,44 @@ reservations = [
-
-# ステータス別カラー
-status_color = {
-    "確保": "lightblue",
-    "確保": "blue",
-    "抽選中": "yellow",
-    "中止": "lightgrey",
-    "完了": "lightgrey"
-    "中止": "grey",
-    "完了": "grey"
-}
-
-# -------------------------------
-# ヘッダー
-# タイトル
-# -------------------------------
-st.markdown(
-    "<h2>🎾 テニスコート予約管理</h2>", unsafe_allow_html=True
-)
-st.markdown("<h2>🎾 テニスコート予約管理</h2>", unsafe_allow_html=True)
-
-# -------------------------------
-# カレンダー生成
-# カレンダーイベント作成
-# -------------------------------
-st.subheader("📅 11月の予約状況")
-
-# カレンダー表示（簡易版：日付と情報をテーブル化）
 import pandas as pd
+from datetime import datetime, date
 
-# 月の初日・最終日
-year = 2025
-month = 11
-first_day = date(year, month, 1)
-last_day = date(year, month, 30)
+# =========================
+# CSVロード/保存
+# =========================
+DATA_PATH = "../data/reservations.csv"
 
-calendar_list = []
-for single_date in pd.date_range(first_day, last_day):
-    # 該当日の予約
-    res = next((r for r in reservations if r["date"] == single_date.date()), None)
-    if res:
-        cell_text = f"{res['status']}\n〇{res['participants']} ×{res['absent']}"
-        cell_color = status_color.get(res["status"], "white")
+def load_reservations():
+    try:
+        return pd.read_csv(DATA_PATH)
+    except FileNotFoundError:
+        return pd.DataFrame(columns=[
+            "date","facility","status","start_hour","start_minute",
+            "end_hour","end_minute","participants","absent"
+        ])
+
+def save_reservations(df):
+    df.to_csv(DATA_PATH, index=False)
+
+df_res = load_reservations()
+
+# =========================
+# ヘルパー
+# =========================
+def status_color(status):
+    if status=="確保":
+        return "green"
+    elif status=="抽選中":
+        return "yellow"
+    elif status in ["中止","完了"]:
+        return "lightgray"
     else:
-        cell_text = ""
-        cell_color = "white"
-    calendar_list.append({
-        "日付": single_date.date(),
-        "予約状況": cell_text,
-        "color": cell_color
-events = []
-for r in reservations:
-    start_str = r["date"].strftime("%Y-%m-%d")
-    end_str = (r["date"] + timedelta(days=1)).strftime("%Y-%m-%d")
-    title = f"{r['status']} 〇{r['participants']} ×{r['absent']}"
-    color = status_color.get(r["status"], "white")
-    
-    events.append({
-        "title": title,
-        "start": start_str,
-        "end": end_str,
-        "color": color
-    })
+        return "white"
 
-calendar_df = pd.DataFrame(calendar_list)
-# -------------------------------
-# カレンダー表示
-# -------------------------------
-FullCalendar(
-    events=events,
-    initial_view="dayGridMonth",   # 月表示
-    selectable=True
-)
+# =========================
+# 日付クリック（予約登録）
+# =========================
+st.title("🎾 テニスコート予約管理")
 
-# AgGridでカラフル表示
-from st_aggrid import AgGrid, GridOptionsBuilder
-gb = GridOptionsBuilder.from_dataframe(calendar_df)
-gb.configure_columns(["日付", "予約状況"])
-gb.configure_default_column(editable=False)
-# 条件付きで色付け
-cells_styles = []
-for idx, row in calendar_df.iterrows():
-    cells_styles.append({
-        "rowIndex": idx,
-        "backgroundColor": row["color"]
-    })
-grid_options = gb.build()
-AgGrid(calendar_df, gridOptions=grid_options)
-# -------------------------------
-# 日付クリック時の処理は次ステップで追加
-# -------------------------------
-st.info("日付クリックで予約詳細モーダルを表示予定")
+# 月表示（簡易）
+selected_date = st.date_input("予約日を選択", value=date.today())
+
+# 過去日付は自動で完了
+df_res["date"] = pd.to_datetime(df_res["date"]).dt.date
+df_res.loc[df_res["date"] < date.today(), "status"] = "完了"
+
+# カレンダー風表示（簡易テーブル）
+st.subheader("予約状況（月表示）")
+
+df_show = df_res[pd.to_datetime(df_res["date"]).dt.month == selected_date.month]
+
+df_show_display = df_show.copy()
+df_show_display["時間"] = df_show_display["start_hour"].astype(str).str.zfill(2) + ":" + \
+                          df_show_display["start_minute"].astype(str).str.zfill(2) + "〜" + \
+                          df_show_display["end_hour"].astype(str).str.zfill(2) + ":" + \
+                          df_show_display["end_minute"].astype(str).str.zfill(2)
+df_show_display["参加人数"] = df_show_display["participants"].apply(lambda x: len(eval(x)) if x else 0)
+df_show_display["不参加人数"] = df_show_display["absent"].apply(lambda x: len(eval(x)) if x else 0)
+df_show_display = df_show_display[["date","facility","時間","status","参加人数","不参加人数"]]
+st.dataframe(df_show_display.style.applymap(lambda v: status_color(v) if v in ["確保","抽選中","中止","完了"] else "", subset=["status"]))
+
+# =========================
+# 予約登録
+# =========================
+st.subheader("予約登録")
+facility = st.text_input("施設名")
+
+col1, col2, col3, col4 = st.columns(4)
+with col1:
+    start_hour = st.selectbox("開始時（時）", list(range(0,24)), key="sh")
+with col2:
+    start_minute = st.selectbox("開始分", [0,10,20,30,40,50], key="sm")
+with col3:
+    end_hour = st.selectbox("終了時（時）", list(range(0,24)), key="eh")
+with col4:
+    end_minute = st.selectbox("終了分", [0,10,20,30,40,50], key="em")
+
+start_time_str = f"{start_hour:02d}:{start_minute:02d}"
+end_time_str = f"{end_hour:02d}:{end_minute:02d}"
+st.write(f"開始: {start_time_str} / 終了: {end_time_str}")
+
+status = st.selectbox("ステータス", ["確保","抽選中","中止"])
+
+if st.button("登録"):
+    df_res = pd.concat([df_res, pd.DataFrame([{
+        "date": selected_date,
+        "facility": facility,
+        "status": status,
+        "start_hour": start_hour,
+        "start_minute": start_minute,
+        "end_hour": end_hour,
+        "end_minute": end_minute,
+        "participants": [],
+        "absent": []
+    }])], ignore_index=True)
+    save_reservations(df_res)
+    st.success(f"{selected_date} に {facility} を登録しました")
+
+# =========================
+# 参加表明
+# =========================
+st.subheader("参加表明")
+if not df_res.empty:
+    reservation_idx = st.selectbox("予約を選択", df_res.index, format_func=lambda x: f"{df_res.loc[x,'date']} {df_res.loc[x,'facility']}")
+    if reservation_idx is not None:
+        name = st.text_input("ニックネーム")
+        attendance = st.selectbox("参加状況", ["参加","不参加"])
+        if st.button("登録（参加表明）", key="participation"):
+            participants = eval(df_res.at[reservation_idx,"participants"]) if df_res.at[reservation_idx,"participants"] else []
+            absent = eval(df_res.at[reservation_idx,"absent"]) if df_res.at[reservation_idx,"absent"] else []
+            # 既存削除
+            if name in participants: participants.remove(name)
+            if name in absent: absent.remove(name)
+            # 新規追加
+            if attendance=="参加":
+                participants.append(name)
+            else:
+                absent.append(name)
+            df_res.at[reservation_idx,"participants"] = str(participants)
+            df_res.at[reservation_idx,"absent"] = str(absent)
+            save_reservations(df_res)
+            st.success(f"{name} の参加表明を登録しました")
