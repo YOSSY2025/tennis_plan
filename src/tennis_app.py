@@ -1,84 +1,123 @@
 import streamlit as st
 import pandas as pd
-from datetime import date
-import calendar as cal
+from datetime import datetime, date
 
-# -------------------------
-# サンプル予約データ（辞書のリスト）
-# -------------------------
-reservations = [
-    {"date": "2025-11-07", "status": "確保", "participants": 3, "absent": 1},
-    {"date": "2025-11-10", "status": "抽選中", "participants": 0, "absent": 0},
-    {"date": "2025-11-15", "status": "中止", "participants": 0, "absent": 0},
-]
+# =========================
+# CSVロード/保存
+# =========================
+DATA_PATH = "../data/reservations.csv"
 
-# DataFrame に変換
-df = pd.DataFrame(reservations)
-# 日付列を datetime.date 型に変換
-df['date'] = pd.to_datetime(df['date']).dt.date
+def load_reservations():
+    try:
+        return pd.read_csv(DATA_PATH)
+    except FileNotFoundError:
+        return pd.DataFrame(columns=[
+            "date","facility","status","start_hour","start_minute",
+            "end_hour","end_minute","participants","absent"
+        ])
 
-# 日付ごとの予約マッピング
-res_map = {r['date']: r for _, r in df.iterrows()}
+def save_reservations(df):
+    df.to_csv(DATA_PATH, index=False)
 
-# ステータスごとの背景色
-status_color = {
-    "確保": "#90EE90",      # lightgreen
-    "抽選中": "#FFFF99",    # yellow
-    "中止": "#D3D3D3",      # lightgrey
-    "完了": "#D3D3D3"       # lightgrey
-}
+df_res = load_reservations()
 
-# -------------------------
-# 月の情報
-# -------------------------
-today = date.today()
-year, month = today.year, today.month
-_, num_days = cal.monthrange(year, month)
+# =========================
+# ヘルパー
+# =========================
+def status_color(status):
+    if status=="確保":
+        return "green"
+    elif status=="抽選中":
+        return "yellow"
+    elif status in ["中止","完了"]:
+        return "lightgray"
+    else:
+        return "white"
 
-# -------------------------
-# タイトル
-# -------------------------
-st.markdown("<h2>🎾 テニスコート予約管理</h2>", unsafe_allow_html=True)
-st.write(f"表示中: {year}年 {month}月")
+# =========================
+# 日付クリック（予約登録）
+# =========================
+st.title("🎾 テニスコート予約管理")
 
-# -------------------------
-# カレンダーマトリクス生成
-# -------------------------
-weeks = []
-week = []
-first_weekday = cal.monthrange(year, month)[0]  # 月初の曜日（0=月曜）
-day_counter = 1
+# 月表示（簡易）
+selected_date = st.date_input("予約日を選択", value=date.today())
 
-# 最初の週の空白埋め
-for i in range(first_weekday):
-    week.append("")
+# 過去日付は自動で完了
+df_res["date"] = pd.to_datetime(df_res["date"]).dt.date
+df_res.loc[df_res["date"] < date.today(), "status"] = "完了"
 
-while day_counter <= num_days:
-    week.append(day_counter)
-    if len(week) == 7:
-        weeks.append(week)
-        week = []
-    day_counter += 1
+# カレンダー風表示（簡易テーブル）
+st.subheader("予約状況（月表示）")
+df_show = df_res[pd.to_datetime(df_res["date"]).dt.month == selected_date.month]
 
-# 最後の週の空白埋め
-if week:
-    while len(week) < 7:
-        week.append("")
-    weeks.append(week)
+df_show_display = df_show.copy()
+df_show_display["時間"] = df_show_display["start_hour"].astype(str).str.zfill(2) + ":" + \
+                          df_show_display["start_minute"].astype(str).str.zfill(2) + "〜" + \
+                          df_show_display["end_hour"].astype(str).str.zfill(2) + ":" + \
+                          df_show_display["end_minute"].astype(str).str.zfill(2)
+df_show_display["参加人数"] = df_show_display["participants"].apply(lambda x: len(eval(x)) if x else 0)
+df_show_display["不参加人数"] = df_show_display["absent"].apply(lambda x: len(eval(x)) if x else 0)
+df_show_display = df_show_display[["date","facility","時間","status","参加人数","不参加人数"]]
+st.dataframe(df_show_display.style.applymap(lambda v: status_color(v) if v in ["確保","抽選中","中止","完了"] else "", subset=["status"]))
 
-# -------------------------
-# カレンダー表示
-# -------------------------
-for w in weeks:
-    cols = st.columns(7)
-    for i, day in enumerate(w):
-        if day == "":
-            cols[i].write(" ")
-        else:
-            current_date = date(year, month, day)
-            r = res_map.get(current_date)
-            if r is not None:
-                display_text = f"{r['status']} 〇{r['participants']} ×{r['absent']}"
-                cols[i].button(display_text, key=str(current_date), help=str(current_date))
+# =========================
+# 予約登録
+# =========================
+st.subheader("予約登録")
+facility = st.text_input("施設名")
+
+col1, col2, col3, col4 = st.columns(4)
+with col1:
+    start_hour = st.selectbox("開始時（時）", list(range(0,24)), key="sh")
+with col2:
+    start_minute = st.selectbox("開始分", [0,10,20,30,40,50], key="sm")
+with col3:
+    end_hour = st.selectbox("終了時（時）", list(range(0,24)), key="eh")
+with col4:
+    end_minute = st.selectbox("終了分", [0,10,20,30,40,50], key="em")
+
+start_time_str = f"{start_hour:02d}:{start_minute:02d}"
+end_time_str = f"{end_hour:02d}:{end_minute:02d}"
+st.write(f"開始: {start_time_str} / 終了: {end_time_str}")
+
+status = st.selectbox("ステータス", ["確保","抽選中","中止"])
+
+if st.button("登録"):
+    df_res = pd.concat([df_res, pd.DataFrame([{
+        "date": selected_date,
+        "facility": facility,
+        "status": status,
+        "start_hour": start_hour,
+        "start_minute": start_minute,
+        "end_hour": end_hour,
+        "end_minute": end_minute,
+        "participants": [],
+        "absent": []
+    }])], ignore_index=True)
+    save_reservations(df_res)
+    st.success(f"{selected_date} に {facility} を登録しました")
+
+# =========================
+# 参加表明
+# =========================
+st.subheader("参加表明")
+if not df_res.empty:
+    reservation_idx = st.selectbox("予約を選択", df_res.index, format_func=lambda x: f"{df_res.loc[x,'date']} {df_res.loc[x,'facility']}")
+    if reservation_idx is not None:
+        name = st.text_input("ニックネーム")
+        attendance = st.selectbox("参加状況", ["参加","不参加"])
+        if st.button("登録（参加表明）", key="participation"):
+            participants = eval(df_res.at[reservation_idx,"participants"]) if df_res.at[reservation_idx,"participants"] else []
+            absent = eval(df_res.at[reservation_idx,"absent"]) if df_res.at[reservation_idx,"absent"] else []
+            # 既存削除
+            if name in participants: participants.remove(name)
+            if name in absent: absent.remove(name)
+            # 新規追加
+            if attendance=="参加":
+                participants.append(name)
             else:
-                cols[i].button(str(day), key=str(current_date), help=str(current_date))
+                absent.append(name)
+            df_res.at[reservation_idx,"participants"] = str(participants)
+            df_res.at[reservation_idx,"absent"] = str(absent)
+            save_reservations(df_res)
+            st.success(f"{name} の参加表明を登録しました")
