@@ -9,4 +9,4 @@ import runpy
 import os
 
 _HERE = os.path.dirname(__file__)
-runpy.run_path(os.path.join(_HERE, "tennis_app_calendar.py"), run_name="__main__")
+runpy.run_path(os.path.join(_HERE, "tennis_app.py"), run_name="__main__")
