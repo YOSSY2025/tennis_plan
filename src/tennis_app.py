@@ -1,6 +1,6 @@
 import streamlit as st
-from streamlit_calendar import calendar
-from datetime import date
+from datetime import date, datetime, timedelta
+from streamlit_fullcalendar import FullCalendar
 
 # -------------------------------
 # サンプル予約データ
@@ -13,10 +13,10 @@ reservations = [
 
 # ステータス別カラー
 status_color = {
-    "確保": "lightgreen",
+    "確保": "blue",
     "抽選中": "yellow",
-    "中止": "lightgrey",
-    "完了": "lightgrey"
+    "中止": "grey",
+    "完了": "grey"
 }
 
 # -------------------------------
@@ -25,28 +25,32 @@ status_color = {
 st.markdown("<h2>🎾 テニスコート予約管理</h2>", unsafe_allow_html=True)
 
 # -------------------------------
-# カレンダー用データ作成
+# カレンダーイベント作成
 # -------------------------------
 events = []
 for r in reservations:
+    start_str = r["date"].strftime("%Y-%m-%d")
+    end_str = (r["date"] + timedelta(days=1)).strftime("%Y-%m-%d")
+    title = f"{r['status']} 〇{r['participants']} ×{r['absent']}"
+    color = status_color.get(r["status"], "white")
+    
     events.append({
-        "date": r["date"],
-        "value": f"{r['status']} 〇{r['participants']} ×{r['absent']}",
-        "color": status_color.get(r["status"], "white")
+        "title": title,
+        "start": start_str,
+        "end": end_str,
+        "color": color
     })
 
 # -------------------------------
-# 月カレンダー表示
+# カレンダー表示
 # -------------------------------
-selected_date = calendar(events=events, format="month", height=600)
+FullCalendar(
+    events=events,
+    initial_view="dayGridMonth",   # 月表示
+    selectable=True
+)
 
 # -------------------------------
-# 選択した日付の情報
+# 日付クリック時の処理は次ステップで追加
 # -------------------------------
-if selected_date:
-    st.write("選択日:", selected_date)
-    event_for_day = next((e for e in events if e["date"] == selected_date), None)
-    if event_for_day:
-        st.write("予約情報:", event_for_day["value"])
-    else:
-        st.write("予約はありません")
+st.info("日付クリックで予約詳細モーダルを表示予定")
