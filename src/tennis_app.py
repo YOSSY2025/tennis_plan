@@ -1,79 +1,71 @@
 import streamlit as st
 import pandas as pd
-from datetime import date, datetime, timedelta
-import calendar as cal
+from datetime import date, timedelta
+from streamlit_calendar import calendar
 
-# -------------------------
 # サンプル予約データ
-# -------------------------
 reservations = [
-    {"date": date(2025, 11, 7), "status": "確保", "participants": 3, "absent": 1},
-    {"date": date(2025, 11, 10), "status": "抽選中", "participants": 0, "absent": 0},
-    {"date": date(2025, 11, 15), "status": "中止", "participants": 0, "absent": 0},
+    {"date": date(2025,11,7),  "facility":"けやきネット","status":"確保", "participants":["Alice","Bob"], "absent":["Charlie"]},
+    {"date": date(2025,11,10), "facility":"駒沢","status":"抽選中", "participants":[], "absent":[]},
 ]
 
+# ステータスカラー
 status_color = {
-    "確保": "#90EE90",      # lightgreen
-    "抽選中": "#FFFF99",    # yellow
-    "中止": "#D3D3D3",      # lightgrey
-    "完了": "#D3D3D3"       # lightgrey
+    "確保": {"bg":"#90ee90","text":"black"},
+    "抽選中": {"bg":"#ffd966","text":"black"},
+    "中止": {"bg":"#d3d3d3","text":"black"},
+    "完了": {"bg":"#d3d3d3","text":"black"}
 }
 
-# -------------------------
-# 月の情報
-# -------------------------
-today = date.today()
-year, month = today.year, today.month
-
-_, num_days = cal.monthrange(year, month)
-
-# 日付ごとの予約マッピング
-res_map = {r["date"]: r for r in reservations}
-
-# -------------------------
 # タイトル
-# -------------------------
 st.markdown("<h2>🎾 テニスコート予約管理</h2>", unsafe_allow_html=True)
-st.write(f"表示中: {year}年 {month}月")
 
-# -------------------------
-# カレンダーマトリクス生成
-# -------------------------
-weeks = []
-week = []
-first_weekday = cal.monthrange(year, month)[0]  # 月初の曜日（0=月曜）
-day_counter = 1
+# カレンダー用イベント
+events = []
+for r in reservations:
+    start_str = r["date"].strftime("%Y-%m-%d")
+    end_str = (r["date"]+timedelta(days=1)).strftime("%Y-%m-%d")
+    title_str = f"{r['status']} 〇{len(r['participants'])} ×{len(r['absent'])}"
+    color = status_color.get(r["status"], {"bg":"#FFFFFF","text":"black"})
+    events.append({
+        "title": title_str,
+        "start": start_str,
+        "end": end_str,
+        "backgroundColor": color["bg"],
+        "borderColor": color["bg"],
+        "textColor": color["text"]
+    })
 
-# 最初の週の空白埋め
-for i in range(first_weekday):
-    week.append("")
-
-while day_counter <= num_days:
-    week.append(day_counter)
-    if len(week) == 7:
-        weeks.append(week)
-        week = []
-    day_counter += 1
-
-# 最後の週の空白埋め
-if week:
-    while len(week) < 7:
-        week.append("")
-    weeks.append(week)
-
-# -------------------------
 # カレンダー表示
-# -------------------------
-for w in weeks:
-    cols = st.columns(7)
-    for i, day in enumerate(w):
-        if day == "":
-            cols[i].write(" ")
-        else:
-            current_date = date(year, month, day)
-            r = res_map.get(current_date)
-            if r:
-                display_text = f"{r['status']} 〇{r['participants']} ×{r['absent']}"
-                cols[i].button(display_text, key=str(current_date), help=str(current_date))
-            else:
-                cols[i].button(str(day), key=str(current_date), help=str(current_date))
+cal_state = calendar(
+    events=events,
+    options={
+        "initialView":"dayGridMonth",
+        "selectable":True,
+        "headerToolbar":{"left":"prev,next today","center":"title","right":""}
+    },
+    key="reservation_calendar"
+)
+
+# 日付クリックやイベントクリック
+if cal_state:
+    callback = cal_state.get("callback")
+    if callback == "dateClick":
+        clicked_date = cal_state["dateClick"]["date"]
+        st.info(f"📅 {clicked_date} の予約を確認/登録")
+        # モーダル風で詳細表示
+        facility = st.text_input("施設名")
+        start_time = st.time_input("開始時間")
+        end_time = st.time_input("終了時間")
+        status = st.selectbox("ステータス", ["確保","抽選中","中止"])
+        if st.button("登録"):
+            st.success(f"{clicked_date} に {facility} を登録しました")
+    elif callback == "eventClick":
+        ev = cal_state["eventClick"]["event"]
+        st.info(f"イベント選択：{ev['title']}")
+        # 参加表明管理
+        st.write("参加表明")
+        nick = st.text_input("ニックネーム")
+        part = st.radio("参加状況", ["参加","不参加"])
+        if st.button("反映"):
+            st.success(f"{nick} は {part} に設定されました")
