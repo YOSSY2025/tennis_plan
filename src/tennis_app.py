@@ -5,7 +5,7 @@ from datetime import datetime, date, time, timedelta
 from streamlit_calendar import calendar
 
 # ===== CSVパス =====
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CSV_PATH = os.path.join(BASE_DIR, "data", "reservations.csv")
 
 # データフォルダの作成
