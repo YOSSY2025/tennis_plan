@@ -89,7 +89,11 @@ cal_state = calendar(
     options={
         "initialView": "dayGridMonth",
         "selectable": True,
-        "headerToolbar": {"left": "prev,next today", "center": "title", "right": ""}
+        "headerToolbar": {"left":"prev,next today","center":"title","right":""},
+        "eventDisplay": "block",  # 文字サイズの自動補正を無効化
+        "eventContent": """function(arg) {
+            return { html: arg.event.title };
+        }"""
     },
     key="reservation_calendar"
 )
