@@ -121,39 +121,48 @@ if cal_state:
             st.experimental_rerun()
 
     # ---- イベントクリック ----
+# ---- イベントクリック ----
     elif callback == "eventClick":
         ev = cal_state["eventClick"]["event"]
-        uid = ev["id"]
-        r = df_res[df_res["uid"] == uid].iloc[0]  # uid で安全に取得
+        idx = ev["id"]
 
-        st.info(
-            f"施設: {r['facility']}\n"
-            f"ステータス: {r['status']}\n"
-            f"時間: {int(r['start_hour']):02d}:{int(r['start_minute']):02d} - "
-            f"{int(r['end_hour']):02d}:{int(r['end_minute']):02d}\n"
-            f"参加: {len(r['participants'])}人\n"
-            f"不参加: {len(r['absent'])}人"
-        )
-        nick = st.text_input("ニックネーム", key=f"nick_{uid}")
-        part = st.radio("参加状況", ["参加", "不参加"], key=f"part_{uid}")
+        # indexの存在を確認
+        if idx not in df_res.index:
+            st.error("選択されたイベントは存在しません")
+        else:
+            r = df_res.loc[idx]
 
-        if st.button("反映", key=f"apply_{uid}"):
-            participants = list(r["participants"]) if isinstance(r["participants"], list) else []
-            absent = list(r["absent"]) if isinstance(r["absent"], list) else []
+            st.info(
+                f"施設: {r['facility']}\n"
+                f"ステータス: {r['status']}\n"
+                f"時間: {r['start_hour']:02d}:{r['start_minute']:02d} - {r['end_hour']:02d}:{r['end_minute']:02d}\n"
+                f"参加: {len(r['participants'])}人\n"
+                f"不参加: {len(r['absent'])}人"
+            )
 
-            # 以前の状態をクリア
-            if nick in participants:
-                participants.remove(nick)
-            if nick in absent:
-                absent.remove(nick)
+            nick = st.text_input("ニックネーム", key=f"nick_{idx}")
+            part = st.radio("参加状況", ["参加", "不参加"], key=f"part_{idx}")
 
-            if part == "参加":
-                participants.append(nick)
-            else:
-                absent.append(nick)
+            if st.button("反映", key=f"apply_{idx}"):
+                # 既存データを安全に取得
+                participants = list(r["participants"]) if isinstance(r["participants"], list) else []
+                absent = list(r["absent"]) if isinstance(r["absent"], list) else []
 
-            df_res.loc[df_res['uid'] == uid, "participants"] = [participants]
-            df_res.loc[df_res['uid'] == uid, "absent"] = [absent]
-            save_reservations(df_res)
-            st.success(f"{nick} は {part} に設定されました")
-            st.experimental_rerun()
+                # 前回の参加情報を削除
+                if nick in participants:
+                    participants.remove(nick)
+                if nick in absent:
+                    absent.remove(nick)
+
+                # 新しい参加状況を反映
+                if part == "参加":
+                    participants.append(nick)
+                else:
+                    absent.append(nick)
+
+                # DataFrame に反映
+                df_res.at[idx, "participants"] = participants
+                df_res.at[idx, "absent"] = absent
+                save_reservations(df_res)
+                st.success(f"{nick} は {part} に設定されました")
+                st.experimental_rerun()
