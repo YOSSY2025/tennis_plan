@@ -138,23 +138,32 @@ if cal_state:
             st.success(f"{clicked_date_jst} に {facility} を登録しました")
             st.experimental_rerun()
 
-    # ---- イベントクリック ----
 # ---- イベントクリック ----
     elif callback == "eventClick":
         ev = cal_state["eventClick"]["event"]
         idx = int(ev["id"])
         
         if idx not in df_res.index:
-            st.error("選択したイベントは存在しません")
+            st.warning("このイベントは存在しません。")
         else:
             r = df_res.loc[idx]
             event_date = to_jst_date(r["date"])
-            st.info(f"イベント選択：{event_date}\n{r['facility']} ({r['status']})")
 
-            # ===== 参加表明操作 =====
-            st.subheader("参加表明")
+            # 詳細表示（改行対応）
+            st.markdown(f"""
+    ### イベント詳細
+    日付: {event_date}<br>
+    施設: {r['facility']}<br>
+    ステータス: {r['status']}<br>
+    時間:<br> &nbsp;&nbsp;{int(r['start_hour']):02d}:{int(r['start_minute']):02d} - {int(r['end_hour']):02d}:{int(r['end_minute']):02d}<br>
+    参加者:<br> &nbsp;&nbsp;{', '.join(r['participants']) if r['participants'] else 'なし'}<br>
+    不参加者:<br> &nbsp;&nbsp;{', '.join(r['absent']) if r['absent'] else 'なし'}
+    """, unsafe_allow_html=True)
+
+            # 参加表明フォーム
             nick = st.text_input("ニックネーム", key=f"nick_{idx}")
             part = st.radio("参加状況", ["参加", "不参加"], key=f"part_{idx}")
+
             if st.button("反映", key=f"apply_{idx}"):
                 participants = list(r["participants"]) if isinstance(r["participants"], list) else []
                 absent = list(r["absent"]) if isinstance(r["absent"], list) else []
@@ -175,11 +184,11 @@ if cal_state:
                 st.success(f"{nick} は {part} に設定されました")
                 st.experimental_rerun()
 
-            # ===== イベント削除操作 =====
-            st.subheader("イベント削除")
-            confirm_delete = st.checkbox("本当に削除しますか？", key=f"confirm_del_{idx}")
-            if confirm_delete and st.button("イベント削除", key=f"del_{idx}"):
-                df_res = df_res.drop(idx).reset_index(drop=True)
-                save_reservations(df_res)
-                st.success(f"{r['facility']} のイベントを削除しました")
-                st.experimental_rerun()
+            # イベント削除
+            if st.button("イベント削除", key=f"del_{idx}"):
+                confirm = st.checkbox("本当に削除しますか？", key=f"confirm_del_{idx}")
+                if confirm:
+                    df_res = df_res.drop(idx).reset_index(drop=True)
+                    save_reservations(df_res)
+                    st.success(f"イベント {r['facility']} ({event_date}) を削除しました")
+                    st.experimental_rerun()
