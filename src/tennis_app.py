@@ -53,10 +53,22 @@ events = []
 for r in df_res.itertuples():
     if pd.isna(r.date):
         continue
+<<<<<<< HEAD
     start_dt = datetime.combine(r.date, time(int(r.start_hour or 0), int(r.start_minute or 0)))
     end_dt = datetime.combine(r.date, time(int(r.end_hour or 0), int(r.end_minute or 0)))
     color = status_color.get(r.status, {"bg":"#FFFFFF","text":"black"})
     title_str = f"{r.status} {r.facility}"  # 視認性重視
+=======
+
+    start_dt = datetime.combine(r["date"], time(int(r.get("start_hour",0)), int(r.get("start_minute",0))))
+    end_dt   = datetime.combine(r["date"], time(int(r.get("end_hour",0)), int(r.get("end_minute",0))))
+
+    color = status_color.get(r["status"], {"bg":"#FFFFFF","text":"black"})
+
+    # ここを修正
+    title_str = f"{r['status']} {r['facility']} o{len(r['participants'])} x{len(r['absent'])}"
+
+>>>>>>> parent of 0faf52b (Update tennis_app.py)
     events.append({
         "id": r.uid,  # uidを使用
         "title": title_str,
