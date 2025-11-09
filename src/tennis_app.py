@@ -5,11 +5,14 @@ from datetime import datetime, date, time, timedelta
 from streamlit_calendar import calendar
 
 # ===== CSVパス =====
-CSV_PATH = "../data/reservations.csv"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CSV_PATH = os.path.join(BASE_DIR, "data", "reservations.csv")
 
-# ===== データフォルダ・CSV初期化 =====
-if not os.path.exists("../data"):
-    os.makedirs("../data")
+# データフォルダの作成
+if not os.path.exists(os.path.join(BASE_DIR, "data")):
+    os.makedirs(os.path.join(BASE_DIR, "data"))
+
+
 
 if not os.path.exists(CSV_PATH):
     df_init = pd.DataFrame(columns=[
