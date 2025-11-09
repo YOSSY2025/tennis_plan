@@ -10,3 +10,4 @@ date,facility,status,start_hour,start_minute,end_hour,end_minute,participants,ab
 2025-11-23,テスト,確保,1,0,2,0,,
 2025-11-20,テスト,確保,5,0,6,0,,
 2025-11-21,100,抽選中,1,0,2,0,,
+2025-11-10,テスト,抽選中,6,0,10,0,,
