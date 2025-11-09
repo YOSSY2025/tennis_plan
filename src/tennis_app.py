@@ -1,7 +1,8 @@
+# src/tennis_app.py
 import streamlit as st
 import pandas as pd
 import os
-from datetime import date, datetime, timedelta
+from datetime import datetime, date, time, timedelta
 from streamlit_calendar import calendar
 
 # ===== CSVパス =====
@@ -12,21 +13,36 @@ if not os.path.exists("../data"):
     os.makedirs("../data")
 
 if not os.path.exists(CSV_PATH):
-    df_init = pd.DataFrame(columns=["date","facility","status","start_hour","start_minute","end_hour","end_minute","participants","absent"])
+    df_init = pd.DataFrame(columns=[
+        "date","facility","status","start_hour","start_minute",
+        "end_hour","end_minute","participants","absent"
+    ])
     df_init.to_csv(CSV_PATH, index=False)
 
 # ===== CSV読み書き関数 =====
 def load_reservations():
     df = pd.read_csv(CSV_PATH)
-    df['date'] = pd.to_datetime(df['date']).dt.date
-    df['participants'] = df['participants'].fillna("").apply(lambda x: x.split(';') if x else [])
-    df['absent'] = df['absent'].fillna("").apply(lambda x: x.split(';') if x else [])
+    # 日付列を安全に変換（失敗はNaT）
+    df["date"] = pd.to_datetime(df["date"], errors="coerce").dt.date
+    # participants/absent をリスト化（空文字 -> []）
+    def to_list_field(x):
+        if pd.isna(x) or x == "":
+            return []
+        if isinstance(x, list):
+            return x
+        # 保存は semicolon 区切り
+        return str(x).split(";") if ";" in str(x) else eval(str(x)) if str(x).startswith("[") else [s for s in str(x).split(";") if s]
+    df["participants"] = df["participants"].apply(to_list_field)
+    df["absent"] = df["absent"].apply(to_list_field)
     return df
 
 def save_reservations(df):
     df_to_save = df.copy()
-    df_to_save['participants'] = df_to_save['participants'].apply(lambda x: ";".join(x))
-    df_to_save['absent'] = df_to_save['absent'].apply(lambda x: ";".join(x))
+    # date -> YYYY-MM-DD
+    df_to_save["date"] = df_to_save["date"].apply(lambda d: d.strftime("%Y-%m-%d") if (not pd.isna(d) and isinstance(d, (date, datetime))) else "")
+    # list -> semicolon string
+    df_to_save["participants"] = df_to_save["participants"].apply(lambda lst: ";".join(lst) if isinstance(lst, (list, tuple)) else (str(lst) if pd.notna(lst) else ""))
+    df_to_save["absent"] = df_to_save["absent"].apply(lambda lst: ";".join(lst) if isinstance(lst, (list, tuple)) else (str(lst) if pd.notna(lst) else ""))
     df_to_save.to_csv(CSV_PATH, index=False)
 
 # ===== ステータスカラー =====
@@ -43,15 +59,32 @@ st.markdown("<h2>🎾 テニスコート予約管理</h2>", unsafe_allow_html=Tr
 # ===== データ読み込み =====
 df_res = load_reservations()
 
-# ===== カレンダー表示用イベント生成 =====
+# ===== イベント生成 (カレンダー用) =====
 events = []
-for idx, r in df_res.iterrows():
-    start_str = r["date"].strftime("%Y-%m-%d")
-    end_str = (r["date"] + timedelta(days=1)).strftime("%Y-%m-%d")
-    title_str = f"{r['status']} 〇{len(r['participants'])} ×{len(r['absent'])}"
-    color = status_color.get(r["status"], {"bg":"#FFFFFF","text":"black"})
+for idx, r in df_res.reset_index().iterrows():
+    # idx は DataFrame の reset_index で作った行番号（安全に参照できる）
+    # r["date"] は datetime.date か NaT
+    if pd.isna(r["date"]):
+        continue
+    # 可能なら時刻情報を付与した ISO を作る（FullCalendar が解釈できる形式）
+    try:
+        if pd.notna(r.get("start_hour")) and pd.notna(r.get("start_minute")):
+            start_dt = datetime.combine(r["date"], time(int(r["start_hour"]), int(r["start_minute"])))
+            end_dt = datetime.combine(r["date"], time(int(r["end_hour"]), int(r["end_minute"]))) if pd.notna(r.get("end_hour")) else (start_dt + timedelta(hours=1))
+            start_str = start_dt.isoformat()
+            end_str = end_dt.isoformat()
+        else:
+            start_str = r["date"].strftime("%Y-%m-%d")
+            end_str = (r["date"] + timedelta(days=1)).strftime("%Y-%m-%d")
+    except Exception:
+        # フォールバック：日付のみ
+        start_str = r["date"].strftime("%Y-%m-%d")
+        end_str = (r["date"] + timedelta(days=1)).strftime("%Y-%m-%d")
+
+    title_str = f"{r.get('status','')} 〇{len(r.get('participants') or [])} ×{len(r.get('absent') or [])}"
+    color = status_color.get(r.get("status"), {"bg":"#FFFFFF","text":"black"})
     events.append({
-        "id": idx,
+        "id": int(r["index"]),   # reset_index の index を id に使う（元DFのindexを参照）
         "title": title_str,
         "start": start_str,
         "end": end_str,
@@ -74,60 +107,94 @@ cal_state = calendar(
 # ===== 日付クリックで予約登録 =====
 if cal_state:
     callback = cal_state.get("callback")
+    # ---------- dateClick ----------
     if callback == "dateClick":
-        clicked_date = cal_state["dateClick"]["date"]
+        raw_clicked = cal_state["dateClick"]["date"]
+        # ISO形式などを安全にパース（例: "2025-11-07T00:00:00.000Z"）
+        clicked_date = pd.to_datetime(raw_clicked, utc=True).date()
         st.info(f"📅 {clicked_date} の予約を確認/登録")
 
-        facility = st.text_input("施設名")
+        facility = st.text_input("施設名", key=f"facility_{raw_clicked}")
 
+        # 時刻プルダウン（時・分）
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            start_hour = st.selectbox("開始時（時）", list(range(0,24)), key="sh")
+            start_hour = st.selectbox("開始時（時）", list(range(0,24)), key=f"sh_{raw_clicked}")
         with col2:
-            start_minute = st.selectbox("開始分", [0,10,20,30,40,50], key="sm")
+            start_minute = st.selectbox("開始分", [0,10,20,30,40,50], key=f"sm_{raw_clicked}")
         with col3:
-            end_hour = st.selectbox("終了時（時）", list(range(0,24)), key="eh")
+            end_hour = st.selectbox("終了時（時）", list(range(0,24)), key=f"eh_{raw_clicked}")
         with col4:
-            end_minute = st.selectbox("終了分", [0,10,20,30,40,50], key="em")
+            end_minute = st.selectbox("終了分", [0,10,20,30,40,50], key=f"em_{raw_clicked}")
 
-        status = st.selectbox("ステータス", ["確保","抽選中","中止"])
+        # 見やすく HH:MM 表示
+        start_time_str = f"{int(start_hour):02d}:{int(start_minute):02d}"
+        end_time_str = f"{int(end_hour):02d}:{int(end_minute):02d}"
+        st.markdown(f"**開始:** `{start_time_str}`  **/**  **終了:** `{end_time_str}`")
 
-        if st.button("登録"):
-            df_res = pd.concat([df_res, pd.DataFrame([{
-                "date": datetime.strptime(clicked_date, "%Y-%m-%d").date(),
+        status = st.selectbox("ステータス", ["確保","抽選中","中止"], key=f"st_{raw_clicked}")
+
+        if st.button("登録", key=f"reg_{raw_clicked}"):
+            # 新規行追加（participants/absent は空リスト）
+            new_row = {
+                "date": clicked_date,
                 "facility": facility,
                 "status": status,
-                "start_hour": start_hour,
-                "start_minute": start_minute,
-                "end_hour": end_hour,
-                "end_minute": end_minute,
+                "start_hour": int(start_hour),
+                "start_minute": int(start_minute),
+                "end_hour": int(end_hour),
+                "end_minute": int(end_minute),
                 "participants": [],
                 "absent": []
-            }])], ignore_index=True)
+            }
+            df_res = pd.concat([df_res, pd.DataFrame([new_row])], ignore_index=True)
             save_reservations(df_res)
             st.success(f"{clicked_date} に {facility} を登録しました")
+            st.experimental_rerun()
 
-    # ===== イベントクリックで参加表明 =====
+    # ---------- eventClick ----------
     elif callback == "eventClick":
         ev = cal_state["eventClick"]["event"]
-        idx = ev["id"]
-        r = df_res.loc[idx]
-        st.info(f"イベント選択：{r['facility']} ({r['status']})")
+        # ev['id'] は reset_index の index（int）を想定
+        try:
+            idx = int(ev.get("id"))
+        except Exception:
+            st.error("イベントIDが不正です")
+            idx = None
 
-        nick = st.text_input("ニックネーム")
-        part = st.radio("参加状況", ["参加","不参加"])
+        if idx is not None:
+            # 安全に行取得（元の df_res の index と一致するはず）
+            try:
+                r = df_res.loc[idx]
+            except Exception:
+                st.error("選択した予約が見つかりません")
+                r = None
 
-        if st.button("反映"):
-            if part == "参加":
-                if nick not in r["participants"]:
-                    r["participants"].append(nick)
-                if nick in r["absent"]:
-                    r["absent"].remove(nick)
-            else:
-                if nick not in r["absent"]:
-                    r["absent"].append(nick)
-                if nick in r["participants"]:
-                    r["participants"].remove(nick)
-            df_res.loc[idx] = r
-            save_reservations(df_res)
-            st.success(f"{nick} は {part} に設定されました")
+            if r is not None:
+                st.info(f"イベント選択：{r['facility']} ({r.get('status','')})")
+                nick = st.text_input("ニックネーム", key=f"nick_{idx}")
+                part = st.radio("参加状況", ["参加","不参加"], key=f"part_{idx}")
+
+                if st.button("反映", key=f"apply_{idx}"):
+                    # participants/absent はリスト。取得して更新、保存
+                    participants = list(r["participants"]) if isinstance(r["participants"], list) else []
+                    absent = list(r["absent"]) if isinstance(r["absent"], list) else []
+
+                    # 既存の同名は先に削除
+                    if nick in participants:
+                        participants.remove(nick)
+                    if nick in absent:
+                        absent.remove(nick)
+
+                    if part == "参加":
+                        participants.append(nick)
+                    else:
+                        absent.append(nick)
+
+                    # DataFrame に安全に格納（at を使う）
+                    df_res.at[idx, "participants"] = participants
+                    df_res.at[idx, "absent"] = absent
+
+                    save_reservations(df_res)
+                    st.success(f"{nick} は {part} に設定されました")
+                    st.experimental_rerun()
