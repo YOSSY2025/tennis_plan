@@ -73,8 +73,8 @@ for idx, r in df_res.iterrows():
 
     color = status_color.get(r["status"], {"bg":"#FFFFFF","text":"black"})
 
-    # ここを修正
-    title_str = f"{r['status']} {r['facility']} o{len(r['participants'])} x{len(r['absent'])}"
+    # タイトルをステータス＋施設名のみにする
+    title_str = f"{r['status']} {r['facility']}"
 
     events.append({
         "id": idx,
@@ -94,7 +94,7 @@ cal_state = calendar(
         "selectable": True,
         "headerToolbar": {"left": "prev,next today", "center": "title", "right": ""},
         "eventDisplay": "block",
-        "displayEventTime": False
+        "displayEventTime": False  # 時間表示は非表示
     },
     key="reservation_calendar"
 )
