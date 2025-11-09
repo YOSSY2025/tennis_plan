@@ -8,11 +8,9 @@ from streamlit_calendar import calendar
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CSV_PATH = os.path.join(BASE_DIR, "data", "reservations.csv")
 
-# データフォルダの作成
+# ===== データフォルダ作成 =====
 if not os.path.exists(os.path.join(BASE_DIR, "data")):
     os.makedirs(os.path.join(BASE_DIR, "data"))
-
-
 
 if not os.path.exists(CSV_PATH):
     df_init = pd.DataFrame(columns=[
@@ -34,7 +32,6 @@ def load_reservations():
 
 def save_reservations(df):
     df_to_save = df.copy()
-    # 型変換
     df_to_save["date"] = df_to_save["date"].apply(lambda d: d.strftime("%Y-%m-%d") if isinstance(d, (date, datetime)) else "")
     df_to_save["participants"] = df_to_save["participants"].apply(lambda lst: ";".join(lst) if isinstance(lst, list) else "")
     df_to_save["absent"] = df_to_save["absent"].apply(lambda lst: ";".join(lst) if isinstance(lst, list) else "")
@@ -48,13 +45,24 @@ status_color = {
     "完了": {"bg":"#d3d3d3","text":"black"}
 }
 
+# ===== JST変換 =====
+def to_jst_date(iso_str):
+    """ISO形式の日付文字列をJSTのdate型に変換"""
+    try:
+        dt = datetime.fromisoformat(iso_str.replace("Z", "+00:00"))
+        return (dt + timedelta(hours=9)).date()
+    except Exception:
+        if isinstance(iso_str, date):
+            return iso_str
+        return datetime.strptime(str(iso_str)[:10], "%Y-%m-%d").date()
+
 # ===== タイトル =====
 st.markdown("<h2>🎾 テニスコート予約管理</h2>", unsafe_allow_html=True)
 
 # ===== データ読み込み =====
 df_res = load_reservations()
 
-# ===== カレンダー表示用イベント生成 =====
+# ===== カレンダーイベント生成 =====
 events = []
 for idx, r in df_res.iterrows():
     if pd.isna(r["date"]):
@@ -79,51 +87,50 @@ for idx, r in df_res.iterrows():
 cal_state = calendar(
     events=events,
     options={
-        "initialView":"dayGridMonth",
-        "selectable":True,
-        "headerToolbar":{"left":"prev,next today","center":"title","right":""}
+        "initialView": "dayGridMonth",
+        "selectable": True,
+        "headerToolbar": {"left": "prev,next today", "center": "title", "right": ""}
     },
     key="reservation_calendar"
 )
 
-# ===== 登録処理 =====
+# ===== イベント操作 =====
 if cal_state:
     callback = cal_state.get("callback")
 
     # ---- 日付クリック ----
     if callback == "dateClick":
-        raw_clicked = cal_state["dateClick"]["date"]
-        clicked_date = pd.to_datetime(raw_clicked, utc=True).date()
-        st.info(f"📅 {clicked_date} の予約を登録")
+        clicked_date = cal_state["dateClick"]["date"]
+        clicked_date_jst = to_jst_date(clicked_date)
+        st.info(f"📅 {clicked_date_jst} の予約を確認/登録")
 
-        facility = st.text_input("施設名", key=f"facility_{raw_clicked}")
+        facility = st.text_input("施設名", key=f"facility_{clicked_date}")
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            start_hour = st.selectbox("開始時", list(range(0,24)), key=f"sh_{raw_clicked}")
+            start_hour = st.selectbox("開始時", list(range(0,24)), key=f"sh_{clicked_date}")
         with col2:
-            start_minute = st.selectbox("開始分", [0,10,20,30,40,50], key=f"sm_{raw_clicked}")
+            start_minute = st.selectbox("開始分", [0,10,20,30,40,50], key=f"sm_{clicked_date}")
         with col3:
-            end_hour = st.selectbox("終了時", list(range(0,24)), key=f"eh_{raw_clicked}")
+            end_hour = st.selectbox("終了時", list(range(0,24)), key=f"eh_{clicked_date}")
         with col4:
-            end_minute = st.selectbox("終了分", [0,10,20,30,40,50], key=f"em_{raw_clicked}")
+            end_minute = st.selectbox("終了分", [0,10,20,30,40,50], key=f"em_{clicked_date}")
 
-        status = st.selectbox("ステータス", ["確保","抽選中","中止"], key=f"st_{raw_clicked}")
+        status = st.selectbox("ステータス", ["確保","抽選中","中止"], key=f"st_{clicked_date}")
 
-        if st.button("登録", key=f"reg_{raw_clicked}"):
-            new_row = {
-                "date": clicked_date,
+        if st.button("登録", key=f"reg_{clicked_date}"):
+            df_res = pd.concat([df_res, pd.DataFrame([{
+                "date": clicked_date_jst,
                 "facility": facility,
                 "status": status,
-                "start_hour": int(start_hour),
-                "start_minute": int(start_minute),
-                "end_hour": int(end_hour),
-                "end_minute": int(end_minute),
+                "start_hour": start_hour,
+                "start_minute": start_minute,
+                "end_hour": end_hour,
+                "end_minute": end_minute,
                 "participants": [],
                 "absent": []
-            }
-            df_res = pd.concat([df_res, pd.DataFrame([new_row])], ignore_index=True)
+            }])], ignore_index=True)
             save_reservations(df_res)
-            st.success(f"{clicked_date} に {facility} を登録しました")
+            st.success(f"{clicked_date_jst} に {facility} を登録しました")
             st.experimental_rerun()
 
     # ---- イベントクリック ----
@@ -131,10 +138,11 @@ if cal_state:
         ev = cal_state["eventClick"]["event"]
         idx = int(ev["id"])
         r = df_res.loc[idx]
-        st.info(f"イベント選択：{r['facility']} ({r['status']})")
+        event_date = to_jst_date(r["date"])
+        st.info(f"イベント選択：{event_date}\n{r['facility']} ({r['status']})")
 
         nick = st.text_input("ニックネーム", key=f"nick_{idx}")
-        part = st.radio("参加状況", ["参加","不参加"], key=f"part_{idx}")
+        part = st.radio("参加状況", ["参加", "不参加"], key=f"part_{idx}")
 
         if st.button("反映", key=f"apply_{idx}"):
             participants = list(r["participants"]) if isinstance(r["participants"], list) else []
