@@ -69,10 +69,13 @@ for idx, r in df_res.iterrows():
         continue
 
     start_dt = datetime.combine(r["date"], time(int(r.get("start_hour",0)), int(r.get("start_minute",0))))
-    end_dt = datetime.combine(r["date"], time(int(r.get("end_hour",0)), int(r.get("end_minute",0))))
+    end_dt   = datetime.combine(r["date"], time(int(r.get("end_hour",0)), int(r.get("end_minute",0))))
 
-    title_str = f"{r['facility'][:6]} {r['status']} 〇{len(r['participants'])}×{len(r['absent'])}"
     color = status_color.get(r["status"], {"bg":"#FFFFFF","text":"black"})
+    
+    # タイトルは先頭に余計な文字が出ないよう固定文字列
+    title_str = f"{r['status']}_{r['facility']} ({len(r['participants'])}人)"
+
     events.append({
         "id": idx,
         "title": title_str,
@@ -89,11 +92,9 @@ cal_state = calendar(
     options={
         "initialView": "dayGridMonth",
         "selectable": True,
-        "headerToolbar": {"left":"prev,next today","center":"title","right":""},
-        "eventDisplay": "block",  # 文字サイズの自動補正を無効化
-        "eventContent": """function(arg) {
-            return { html: arg.event.title };
-        }"""
+        "headerToolbar": {"left": "prev,next today", "center": "title", "right": ""},
+        "eventDisplay": "block",
+        "displayEventTime": False
     },
     key="reservation_calendar"
 )
