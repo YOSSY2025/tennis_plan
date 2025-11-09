@@ -3,6 +3,7 @@ import pandas as pd
 import os
 from datetime import datetime, date, time, timedelta
 from streamlit_calendar import calendar
+import re
 
 # ===== CSVパス =====
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -21,13 +22,65 @@ if not os.path.exists(CSV_PATH):
 
 # ===== CSV読み書き関数 =====
 def load_reservations():
-    df = pd.read_csv(CSV_PATH)
+    # Read all as strings first for robust parsing
+    df = pd.read_csv(CSV_PATH, dtype=str)
+
+    # Safe parse for date column: handle numeric epoch-like values and ISO strings
+    def safe_parse_date_series(s):
+        # s is a pandas Series of strings or NaN
+        def parse_one(x):
+            if pd.isna(x):
+                return pd.NaT
+            xs = str(x).strip()
+            if xs == "":
+                return pd.NaT
+            # numeric epoch-like (digits only)
+            if re.fullmatch(r"\d+", xs):
+                try:
+                    iv = int(xs)
+                except Exception:
+                    return pd.NaT
+                for unit in ("ns", "us", "ms", "s"):
+                    try:
+                        t = pd.to_datetime(iv, unit=unit, errors="coerce")
+                    except Exception:
+                        t = pd.NaT
+                    if not pd.isna(t):
+                        # sanity check year
+                        try:
+                            y = int(t.year)
+                        except Exception:
+                            y = None
+                        if y and 1970 <= y <= 2100:
+                            return t.date()
+                return pd.NaT
+            # fallback to pandas
+            try:
+                t = pd.to_datetime(xs, errors="coerce")
+                if pd.isna(t):
+                    return pd.NaT
+                return t.date()
+            except Exception:
+                return pd.NaT
+
+        parsed = s.map(parse_one)
+        return parsed
+
     if "date" in df.columns:
-        df["date"] = pd.to_datetime(df["date"], errors="coerce").dt.date
+        df["date"] = safe_parse_date_series(df["date"])
     else:
-        df["date"] = []
-    df["participants"] = df["participants"].fillna("").apply(lambda x: x.split(";") if x else [])
-    df["absent"] = df["absent"].fillna("").apply(lambda x: x.split(";") if x else [])
+        df["date"] = pd.Series([pd.NaT] * len(df))
+
+    # Coerce numeric fields (hours/minutes) to integers with defaults
+    for col in ("start_hour", "start_minute", "end_hour", "end_minute"):
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0).astype(int)
+        else:
+            df[col] = 0
+
+    # participants / absent: stored as semicolon-separated strings
+    df["participants"] = df.get("participants", pd.Series([""] * len(df))).fillna("").apply(lambda x: x.split(";") if x else [])
+    df["absent"] = df.get("absent", pd.Series([""] * len(df))).fillna("").apply(lambda x: x.split(";") if x else [])
     return df
 
 def save_reservations(df):
@@ -73,7 +126,7 @@ for idx, r in df_res.iterrows():
 
     color = status_color.get(r["status"], {"bg":"#FFFFFF","text":"black"})
 
-    # タイトルをステータス＋施設名のみにする
+    # タイトルはステータス＋施設名のみ
     title_str = f"{r['status']} {r['facility']}"
 
     events.append({
@@ -94,11 +147,10 @@ cal_state = calendar(
         "selectable": True,
         "headerToolbar": {"left": "prev,next today", "center": "title", "right": ""},
         "eventDisplay": "block",
-        "displayEventTime": False  # 時間表示は非表示
+        "displayEventTime": False
     },
     key="reservation_calendar"
 )
-
 # ===== イベント操作 =====
 if cal_state:
     callback = cal_state.get("callback")
@@ -141,11 +193,16 @@ if cal_state:
     # ---- イベントクリック ----
     elif callback == "eventClick":
         ev = cal_state["eventClick"]["event"]
-        idx = int(ev["id"])
+        idx = ev["id"]
         r = df_res.loc[idx]
-        event_date = to_jst_date(r["date"])
-        st.info(f"イベント選択：{event_date}\n{r['facility']} ({r['status']})")
 
+        st.info(
+            f"施設: {r['facility']}\n"
+            f"ステータス: {r['status']}\n"
+            f"時間: {r['start_hour']:02d}:{r['start_minute']:02d} - {r['end_hour']:02d}:{r['end_minute']:02d}\n"
+            f"参加: {len(r['participants'])}人\n"
+            f"不参加: {len(r['absent'])}人"
+        )
         nick = st.text_input("ニックネーム", key=f"nick_{idx}")
         part = st.radio("参加状況", ["参加", "不参加"], key=f"part_{idx}")
 
