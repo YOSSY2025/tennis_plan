@@ -1,93 +1,37 @@
 import streamlit as st
 import pandas as pd
 import os
-from datetime import datetime, date, time, timedelta
+from datetime import date, datetime, time, timedelta
 from streamlit_calendar import calendar
-import re
 
 # ===== CSVパス =====
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CSV_PATH = os.path.join(BASE_DIR, "data", "reservations.csv")
+CSV_PATH = "../data/reservations.csv"
 
-# ===== データフォルダ作成 =====
-if not os.path.exists(os.path.join(BASE_DIR, "data")):
-    os.makedirs(os.path.join(BASE_DIR, "data"))
+# ===== データフォルダ・CSV初期化 =====
+if not os.path.exists("../data"):
+    os.makedirs("../data")
 
 if not os.path.exists(CSV_PATH):
     df_init = pd.DataFrame(columns=[
-        "date","facility","status","start_hour","start_minute",
-        "end_hour","end_minute","participants","absent"
+        "date","facility","status","start_hour","start_minute","end_hour","end_minute","participants","absent","uid"
     ])
     df_init.to_csv(CSV_PATH, index=False)
 
 # ===== CSV読み書き関数 =====
 def load_reservations():
-    # Read all as strings first for robust parsing
-    df = pd.read_csv(CSV_PATH, dtype=str)
-
-    # Safe parse for date column: handle numeric epoch-like values and ISO strings
-    def safe_parse_date_series(s):
-        # s is a pandas Series of strings or NaN
-        def parse_one(x):
-            if pd.isna(x):
-                return pd.NaT
-            xs = str(x).strip()
-            if xs == "":
-                return pd.NaT
-            # numeric epoch-like (digits only)
-            if re.fullmatch(r"\d+", xs):
-                try:
-                    iv = int(xs)
-                except Exception:
-                    return pd.NaT
-                for unit in ("ns", "us", "ms", "s"):
-                    try:
-                        t = pd.to_datetime(iv, unit=unit, errors="coerce")
-                    except Exception:
-                        t = pd.NaT
-                    if not pd.isna(t):
-                        # sanity check year
-                        try:
-                            y = int(t.year)
-                        except Exception:
-                            y = None
-                        if y and 1970 <= y <= 2100:
-                            return t.date()
-                return pd.NaT
-            # fallback to pandas
-            try:
-                t = pd.to_datetime(xs, errors="coerce")
-                if pd.isna(t):
-                    return pd.NaT
-                return t.date()
-            except Exception:
-                return pd.NaT
-
-        parsed = s.map(parse_one)
-        return parsed
-
-    if "date" in df.columns:
-        df["date"] = safe_parse_date_series(df["date"])
-    else:
-        df["date"] = pd.Series([pd.NaT] * len(df))
-
-    # Coerce numeric fields (hours/minutes) to integers with defaults
-    for col in ("start_hour", "start_minute", "end_hour", "end_minute"):
-        if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0).astype(int)
-        else:
-            df[col] = 0
-
-    # participants / absent: stored as semicolon-separated strings
-    df["participants"] = df.get("participants", pd.Series([""] * len(df))).fillna("").apply(lambda x: x.split(";") if x else [])
-    df["absent"] = df.get("absent", pd.Series([""] * len(df))).fillna("").apply(lambda x: x.split(";") if x else [])
+    df = pd.read_csv(CSV_PATH)
+    df['date'] = pd.to_datetime(df['date']).dt.date
+    df['participants'] = df['participants'].fillna("").apply(lambda x: x.split(';') if x else [])
+    df['absent'] = df['absent'].fillna("").apply(lambda x: x.split(';') if x else [])
+    # uid がなければ追加
+    if 'uid' not in df.columns:
+        df['uid'] = range(len(df))
     return df
 
 def save_reservations(df):
     df_to_save = df.copy()
-    df_to_save["date"] = df_to_save["date"].apply(lambda d: d.strftime("%Y-%m-%d") if isinstance(d, (date, datetime)) else "")
-    df_to_save["participants"] = df_to_save["participants"].apply(lambda lst: ";".join(lst) if isinstance(lst, list) else "")
-    df_to_save["absent"] = df_to_save["absent"].apply(lambda lst: ";".join(lst) if isinstance(lst, list) else "")
+    df_to_save['participants'] = df_to_save['participants'].apply(lambda x: ";".join(x))
+    df_to_save['absent'] = df_to_save['absent'].apply(lambda x: ";".join(x))
     df_to_save.to_csv(CSV_PATH, index=False)
 
 # ===== ステータスカラー =====
@@ -98,18 +42,7 @@ status_color = {
     "完了": {"bg":"#d3d3d3","text":"black"}
 }
 
-# ===== JST変換 =====
-def to_jst_date(iso_str):
-    """ISO形式の日付文字列をJSTのdate型に変換"""
-    try:
-        dt = datetime.fromisoformat(iso_str.replace("Z", "+00:00"))
-        return (dt + timedelta(hours=9)).date()
-    except Exception:
-        if isinstance(iso_str, date):
-            return iso_str
-        return datetime.strptime(str(iso_str)[:10], "%Y-%m-%d").date()
-
-# ===== タイトル =====
+# ===== Streamlit タイトル =====
 st.markdown("<h2>🎾 テニスコート予約管理</h2>", unsafe_allow_html=True)
 
 # ===== データ読み込み =====
@@ -117,20 +50,15 @@ df_res = load_reservations()
 
 # ===== カレンダーイベント生成 =====
 events = []
-for idx, r in df_res.iterrows():
-    if pd.isna(r["date"]):
+for r in df_res.itertuples():
+    if pd.isna(r.date):
         continue
-
-    start_dt = datetime.combine(r["date"], time(int(r.get("start_hour",0)), int(r.get("start_minute",0))))
-    end_dt   = datetime.combine(r["date"], time(int(r.get("end_hour",0)), int(r.get("end_minute",0))))
-
-    color = status_color.get(r["status"], {"bg":"#FFFFFF","text":"black"})
-
-    # タイトルはステータス＋施設名のみ
-    title_str = f"{r['status']} {r['facility']}"
-
+    start_dt = datetime.combine(r.date, time(int(r.start_hour or 0), int(r.start_minute or 0)))
+    end_dt = datetime.combine(r.date, time(int(r.end_hour or 0), int(r.end_minute or 0)))
+    color = status_color.get(r.status, {"bg":"#FFFFFF","text":"black"})
+    title_str = f"{r.status} {r.facility}"  # 視認性重視
     events.append({
-        "id": idx,
+        "id": r.uid,  # uidを使用
         "title": title_str,
         "start": start_dt.isoformat(),
         "end": end_dt.isoformat(),
@@ -151,6 +79,7 @@ cal_state = calendar(
     },
     key="reservation_calendar"
 )
+
 # ===== イベント操作 =====
 if cal_state:
     callback = cal_state.get("callback")
@@ -158,7 +87,7 @@ if cal_state:
     # ---- 日付クリック ----
     if callback == "dateClick":
         clicked_date = cal_state["dateClick"]["date"]
-        clicked_date_jst = to_jst_date(clicked_date)
+        clicked_date_jst = datetime.strptime(clicked_date[:10], "%Y-%m-%d").date()
         st.info(f"📅 {clicked_date_jst} の予約を確認/登録")
 
         facility = st.text_input("施設名", key=f"facility_{clicked_date}")
@@ -171,10 +100,10 @@ if cal_state:
             end_hour = st.selectbox("終了時", list(range(0,24)), key=f"eh_{clicked_date}")
         with col4:
             end_minute = st.selectbox("終了分", [0,10,20,30,40,50], key=f"em_{clicked_date}")
-
         status = st.selectbox("ステータス", ["確保","抽選中","中止"], key=f"st_{clicked_date}")
 
         if st.button("登録", key=f"reg_{clicked_date}"):
+            new_uid = df_res['uid'].max() + 1 if len(df_res) > 0 else 0
             df_res = pd.concat([df_res, pd.DataFrame([{
                 "date": clicked_date_jst,
                 "facility": facility,
@@ -184,7 +113,8 @@ if cal_state:
                 "end_hour": end_hour,
                 "end_minute": end_minute,
                 "participants": [],
-                "absent": []
+                "absent": [],
+                "uid": new_uid
             }])], ignore_index=True)
             save_reservations(df_res)
             st.success(f"{clicked_date_jst} に {facility} を登録しました")
@@ -193,23 +123,25 @@ if cal_state:
     # ---- イベントクリック ----
     elif callback == "eventClick":
         ev = cal_state["eventClick"]["event"]
-        idx = ev["id"]
-        r = df_res.loc[idx]
+        uid = ev["id"]
+        r = df_res[df_res["uid"] == uid].iloc[0]  # uid で安全に取得
 
         st.info(
             f"施設: {r['facility']}\n"
             f"ステータス: {r['status']}\n"
-            f"時間: {r['start_hour']:02d}:{r['start_minute']:02d} - {r['end_hour']:02d}:{r['end_minute']:02d}\n"
+            f"時間: {int(r['start_hour']):02d}:{int(r['start_minute']):02d} - "
+            f"{int(r['end_hour']):02d}:{int(r['end_minute']):02d}\n"
             f"参加: {len(r['participants'])}人\n"
             f"不参加: {len(r['absent'])}人"
         )
-        nick = st.text_input("ニックネーム", key=f"nick_{idx}")
-        part = st.radio("参加状況", ["参加", "不参加"], key=f"part_{idx}")
+        nick = st.text_input("ニックネーム", key=f"nick_{uid}")
+        part = st.radio("参加状況", ["参加", "不参加"], key=f"part_{uid}")
 
-        if st.button("反映", key=f"apply_{idx}"):
+        if st.button("反映", key=f"apply_{uid}"):
             participants = list(r["participants"]) if isinstance(r["participants"], list) else []
             absent = list(r["absent"]) if isinstance(r["absent"], list) else []
 
+            # 以前の状態をクリア
             if nick in participants:
                 participants.remove(nick)
             if nick in absent:
@@ -220,8 +152,8 @@ if cal_state:
             else:
                 absent.append(nick)
 
-            df_res.at[idx, "participants"] = participants
-            df_res.at[idx, "absent"] = absent
+            df_res.loc[df_res['uid'] == uid, "participants"] = [participants]
+            df_res.loc[df_res['uid'] == uid, "absent"] = [absent]
             save_reservations(df_res)
             st.success(f"{nick} は {part} に設定されました")
             st.experimental_rerun()
