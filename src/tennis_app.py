@@ -139,11 +139,11 @@ if cal_state:
             st.experimental_rerun()
 
     # ---- イベントクリック ----
+# ---- イベントクリック ----
     elif callback == "eventClick":
         ev = cal_state["eventClick"]["event"]
         idx = int(ev["id"])
         
-        # 行が存在するか確認
         if idx not in df_res.index:
             st.error("選択したイベントは存在しません")
         else:
@@ -151,10 +151,10 @@ if cal_state:
             event_date = to_jst_date(r["date"])
             st.info(f"イベント選択：{event_date}\n{r['facility']} ({r['status']})")
 
-            # 参加者操作
+            # ===== 参加表明操作 =====
+            st.subheader("参加表明")
             nick = st.text_input("ニックネーム", key=f"nick_{idx}")
             part = st.radio("参加状況", ["参加", "不参加"], key=f"part_{idx}")
-
             if st.button("反映", key=f"apply_{idx}"):
                 participants = list(r["participants"]) if isinstance(r["participants"], list) else []
                 absent = list(r["absent"]) if isinstance(r["absent"], list) else []
@@ -175,9 +175,11 @@ if cal_state:
                 st.success(f"{nick} は {part} に設定されました")
                 st.experimental_rerun()
 
-            # 削除ボタン
-            if st.button("削除", key=f"del_{idx}"):
+            # ===== イベント削除操作 =====
+            st.subheader("イベント削除")
+            confirm_delete = st.checkbox("本当に削除しますか？", key=f"confirm_del_{idx}")
+            if confirm_delete and st.button("イベント削除", key=f"del_{idx}"):
                 df_res = df_res.drop(idx).reset_index(drop=True)
                 save_reservations(df_res)
-                st.success(f"{r['facility']} の予約を削除しました")
+                st.success(f"{r['facility']} のイベントを削除しました")
                 st.experimental_rerun()
