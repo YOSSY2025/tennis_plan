@@ -72,9 +72,9 @@ for idx, r in df_res.iterrows():
     end_dt   = datetime.combine(r["date"], time(int(r.get("end_hour",0)), int(r.get("end_minute",0))))
 
     color = status_color.get(r["status"], {"bg":"#FFFFFF","text":"black"})
-    
-    # タイトルは先頭に余計な文字が出ないよう固定文字列
-    title_str = f"{r['status']}_{r['facility']} ({len(r['participants'])}人)"
+
+    # ここを修正
+    title_str = f"{r['status']} {r['facility']} o{len(r['participants'])} x{len(r['absent'])}"
 
     events.append({
         "id": idx,
