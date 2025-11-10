@@ -184,11 +184,24 @@ if cal_state:
                 st.success(f"{nick} は {part} に設定されました")
                 st.experimental_rerun()
 
-            # イベント削除
-            if st.button("イベント削除", key=f"del_{idx}"):
-                confirm = st.checkbox("本当に削除しますか？", key=f"confirm_del_{idx}")
-                if confirm:
+            # ===== イベント削除（確認→削除の順） =====
+            st.subheader("イベント削除")
+
+            # まず確認チェックをユーザーに入れてもらう
+            confirm = st.checkbox(
+                "このイベントを本当に削除しますか？（チェックすると削除ボタンが有効になります）",
+                key=f"confirm_del_{idx}"
+            )
+
+            if confirm:
+                # 確認が入っている場合のみ削除ボタンを表示（確定アクション）
+                if st.button("確定：イベントを削除する", key=f"del_confirm_{idx}"):
+                    # 削除実行
                     df_res = df_res.drop(idx).reset_index(drop=True)
                     save_reservations(df_res)
-                    st.success(f"イベント {r['facility']} ({event_date}) を削除しました")
+                    st.success(f"イベント「{r['facility']}」（{event_date}）を削除しました。")
                     st.experimental_rerun()
+            else:
+                # 未確認時は削除ボタンを表示せず、注意文を出す
+                st.info("イベントを削除する場合は上のチェックを入れてください。")
+
