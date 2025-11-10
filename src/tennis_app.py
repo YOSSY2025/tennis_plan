@@ -143,33 +143,29 @@ if cal_state:
         st.info(f"📅 {clicked_date_jst} の予約を確認/登録")
 
         facility = st.text_input("施設名", key=f"facility_{clicked_date}")
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            start_hour = st.selectbox("開始時", list(range(0,24)), key=f"sh_{clicked_date}")
-        with col2:
-            start_minute = st.selectbox("開始分", [0,10,20,30,40,50], key=f"sm_{clicked_date}")
-        with col3:
-            end_hour = st.selectbox("終了時", list(range(0,24)), key=f"eh_{clicked_date}")
-        with col4:
-            end_minute = st.selectbox("終了分", [0,10,20,30,40,50], key=f"em_{clicked_date}")
-
         status = st.selectbox("ステータス", ["確保","抽選中","中止"], key=f"st_{clicked_date}")
 
+        # 時間入力を st.time_input に変更
+        start_time = st.time_input("開始時間", value=time(0,0), key=f"start_{clicked_date}")
+        end_time   = st.time_input("終了時間", value=time(0,0), key=f"end_{clicked_date}")
+
+        # 登録ボタン押下時
         if st.button("登録", key=f"reg_{clicked_date}"):
             df_res = pd.concat([df_res, pd.DataFrame([{
                 "date": clicked_date_jst,
                 "facility": facility,
                 "status": status,
-                "start_hour": start_hour,
-                "start_minute": start_minute,
-                "end_hour": end_hour,
-                "end_minute": end_minute,
+                "start_hour": start_time.hour,
+                "start_minute": start_time.minute,
+                "end_hour": end_time.hour,
+                "end_minute": end_time.minute,
                 "participants": [],
                 "absent": []
             }])], ignore_index=True)
             save_reservations(df_res)
             st.success(f"{clicked_date_jst} に {facility} を登録しました")
             st.experimental_rerun()
+
 
 # ---- イベントクリック ----
     elif callback == "eventClick":
