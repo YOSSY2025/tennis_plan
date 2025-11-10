@@ -59,7 +59,7 @@ def to_jst_date(iso_str):
 # ===== タイトル =====
 
 
-st.markdown("<h2>🎾 テニスコート予約管理</h2>", unsafe_allow_html=True)
+st.markdown("<h3>🎾 テニスコート予約管理</h3>", unsafe_allow_html=True)
 
 # ===== データ読み込み =====
 df_res = load_reservations()
