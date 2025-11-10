@@ -57,6 +57,8 @@ def to_jst_date(iso_str):
         return datetime.strptime(str(iso_str)[:10], "%Y-%m-%d").date()
 
 # ===== タイトル =====
+
+
 st.markdown("<h2>🎾 テニスコート予約管理</h2>", unsafe_allow_html=True)
 
 # ===== データ読み込み =====
@@ -94,10 +96,41 @@ cal_state = calendar(
         "selectable": True,
         "headerToolbar": {"left": "prev,next today", "center": "title", "right": ""},
         "eventDisplay": "block",
-        "displayEventTime": False  # 時間表示は非表示
+        "displayEventTime": False,
+        "height": "auto",         # ✅ 高さを自動調整（重要）
+        "contentHeight": "auto",  # ✅ カレンダー内コンテンツに応じて伸縮
+        "aspectRatio": 1.2,       # ✅ 横長になりすぎないよう調整（1.0〜1.5で微調整）
     },
     key="reservation_calendar"
 )
+
+# ===== CSSで親要素の高さを自然にする =====
+st.markdown("""
+<style>
+/* Streamlitのコンテナの余白を調整 */
+.block-container {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+}
+
+/* カレンダーの横スクロールを防ぐ */
+.fc {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+}
+
+/* スマホ向けに最適化 */
+@media (max-width: 768px) {
+    .fc {
+        font-size: 0.8rem !important;
+    }
+    .fc-toolbar-title {
+        font-size: 1rem !important;
+    }
+}
+</style>
+""", unsafe_allow_html=True)
 
 # ===== イベント操作 =====
 if cal_state:
