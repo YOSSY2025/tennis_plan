@@ -147,7 +147,16 @@ if cal_state:
         clicked_date_jst = to_jst_date(clicked_date)
         st.info(f"📅 {clicked_date_jst} の予約を確認/登録")
 
-        facility = st.text_input("施設名", key=f"facility_{clicked_date}")
+    # ---- 日付クリック時の施設名入力 ----
+    past_facilities = df_res['facility'].dropna().unique().tolist()
+    facility_input = st.text_input("施設名を入力（既存から選択可）", key=f"facility_{clicked_date}")
+    facility = st.selectbox("施設を選択（新規は入力欄に）", options=past_facilities + ["新規"], index=0, key=f"facility_select_{clicked_date}")
+    if facility != "新規":
+        facility_input = facility
+        
+
+
+
         status = st.selectbox("ステータス", ["確保", "抽選中", "中止"], key=f"st_{clicked_date}")
 
         # --- 時間選択（30分単位 + コンパクト配置 + モバイル調整） ---
@@ -227,8 +236,16 @@ if cal_state:
     """, unsafe_allow_html=True)
 
             # 参加表明フォーム
-            nick = st.text_input("ニックネーム", key=f"nick_{idx}")
-            part = st.radio("参加状況", ["参加", "不参加"], key=f"part_{idx}")
+            # ---- ニックネーム入力 ----
+            past_nicks = list(set([n for lst in df_res['participants'].tolist() + df_res['absent'].tolist() for n in lst if n]))
+            nick = st.text_input("ニックネームを入力（既存から選択可）", key=f"nick_input_{idx}")
+            nick_select = st.selectbox("既存ニックネームから選択（新規は入力欄に）", options=past_nicks + ["新規"], index=0, key=f"nick_select_{idx}")
+            if nick_select != "新規":
+                nick = nick_select
+
+
+
+            part = st.radio("参加状況", ["参加", "不参加","削除"], key=f"part_{idx}")
 
             if st.button("反映", key=f"apply_{idx}"):
                 participants = list(r["participants"]) if isinstance(r["participants"], list) else []
@@ -241,8 +258,18 @@ if cal_state:
 
                 if part == "参加":
                     participants.append(nick)
-                else:
+
+                elif part == "不参加":
                     absent.append(nick)
+
+                elif part == "削除":
+                    if nick in participants:
+                        participants.remove(nick)
+                    if nick in absent:
+                        absent.remove(nick)
+                else:
+                    st.warning("不明な参加状況です。")
+
 
                 df_res.at[idx, "participants"] = participants
                 df_res.at[idx, "absent"] = absent
