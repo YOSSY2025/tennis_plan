@@ -147,15 +147,16 @@ if cal_state:
         clicked_date_jst = to_jst_date(clicked_date)
         st.info(f"📅 {clicked_date_jst} の予約を確認/登録")
 
-    # ---- 日付クリック時の施設名入力 ----
-    past_facilities = df_res['facility'].dropna().unique().tolist()
-    facility_input = st.text_input("施設名を入力（既存から選択可）", key=f"facility_{clicked_date}")
-    facility = st.selectbox("施設を選択（新規は入力欄に）", options=past_facilities + ["新規"], index=0, key=f"facility_select_{clicked_date}")
-    if facility != "新規":
-        facility_input = facility
-        
+        # ---- 日付クリック時の施設名入力 ----
+        # 過去登録済み施設
+        past_facilities = df_res['facility'].dropna().unique().tolist()
+        facility_select = st.selectbox("施設を選択（新規は入力欄に入力）", options=past_facilities + ["新規"], index=0)
 
-
+        # 新規の場合だけ入力欄を表示
+        if facility_select == "新規":
+            facility = st.text_input("施設名を入力")
+        else:
+            facility = facility_select
 
         status = st.selectbox("ステータス", ["確保", "抽選中", "中止"], key=f"st_{clicked_date}")
 
@@ -235,41 +236,39 @@ if cal_state:
 
     """, unsafe_allow_html=True)
 
-            # 参加表明フォーム
-            # ---- ニックネーム入力 ----
+            # 施設名選択（過去登録から選択可）
+            # 過去登録済み施設
+            past_facilities = df_res['facility'].dropna().unique().tolist()
+            # ニックネーム選択
+            # 過去登録済みニックネーム
             past_nicks = list(set([n for lst in df_res['participants'].tolist() + df_res['absent'].tolist() for n in lst if n]))
-            nick = st.text_input("ニックネームを入力（既存から選択可）", key=f"nick_input_{idx}")
-            nick_select = st.selectbox("既存ニックネームから選択（新規は入力欄に）", options=past_nicks + ["新規"], index=0, key=f"nick_select_{idx}")
-            if nick_select != "新規":
+            nick_select = st.selectbox("ニックネームを選択（新規は入力欄に）", options=past_nicks + ["新規"], index=0)
+
+            # 新規の場合だけ入力欄を表示
+            if nick_select == "新規":
+                nick = st.text_input("ニックネームを入力")
+            else:
                 nick = nick_select
 
-
-
-            part = st.radio("参加状況", ["参加", "不参加","削除"], key=f"part_{idx}")
+            # 参加状況
+            part = st.radio("参加状況", ["参加", "不参加", "削除"], key=f"part_{idx}")
 
             if st.button("反映", key=f"apply_{idx}"):
                 participants = list(r["participants"]) if isinstance(r["participants"], list) else []
                 absent = list(r["absent"]) if isinstance(r["absent"], list) else []
 
+                # まず既存から削除
                 if nick in participants:
                     participants.remove(nick)
                 if nick in absent:
                     absent.remove(nick)
 
+                # 反映
                 if part == "参加":
                     participants.append(nick)
-
                 elif part == "不参加":
                     absent.append(nick)
-
-                elif part == "削除":
-                    if nick in participants:
-                        participants.remove(nick)
-                    if nick in absent:
-                        absent.remove(nick)
-                else:
-                    st.warning("不明な参加状況です。")
-
+                # 削除は既にリストから削除済み
 
                 df_res.at[idx, "participants"] = participants
                 df_res.at[idx, "absent"] = absent
@@ -277,7 +276,7 @@ if cal_state:
                 st.success(f"{nick} は {part} に設定されました")
                 st.experimental_rerun()
 
-            # ---- イベント操作 ----
+            # イベント操作
             st.subheader("イベント操作")
             operation = st.radio(
                 "操作を選択",
@@ -319,4 +318,3 @@ if cal_state:
                     save_reservations(df_res)
                     st.success("イベントのメッセージを変更しました")
                     st.experimental_rerun()
-
