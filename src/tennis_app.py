@@ -105,6 +105,10 @@ cal_state = calendar(
         "height": "auto",         # ✅ 高さを自動調整（重要）
         "contentHeight": "auto",  # ✅ カレンダー内コンテンツに応じて伸縮
         "aspectRatio": 1.2,       # ✅ 横長になりすぎないよう調整（1.0〜1.5で微調整）
+        "titleFormat": {  # ここを追加
+            "year": "numeric",
+            "month": "2-digit"  # 12 のように2桁で表示
+        }
     },
     key="reservation_calendar"
 )
@@ -277,6 +281,7 @@ if cal_state:
                 st.experimental_rerun()
 
             # イベント操作
+            st.markdown("---")
             st.subheader("イベント操作")
             operation = st.radio(
                 "操作を選択",
