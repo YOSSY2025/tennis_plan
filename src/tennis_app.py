@@ -28,6 +28,9 @@ def load_reservations():
         df["date"] = []
     df["participants"] = df["participants"].fillna("").apply(lambda x: x.split(";") if x else [])
     df["absent"] = df["absent"].fillna("").apply(lambda x: x.split(";") if x else [])
+    df["message"] = df["message"].fillna("")
+
+    return df
     return df
 
 def save_reservations(df):
@@ -35,6 +38,8 @@ def save_reservations(df):
     df_to_save["date"] = df_to_save["date"].apply(lambda d: d.strftime("%Y-%m-%d") if isinstance(d, (date, datetime)) else "")
     df_to_save["participants"] = df_to_save["participants"].apply(lambda lst: ";".join(lst) if isinstance(lst, list) else "")
     df_to_save["absent"] = df_to_save["absent"].apply(lambda lst: ";".join(lst) if isinstance(lst, list) else "")
+    df_to_save["message"] = df_to_save["message"].fillna("")
+
     df_to_save.to_csv(CSV_PATH, index=False)
 
 # ===== ステータスカラー =====
@@ -167,6 +172,14 @@ if cal_state:
             label_visibility="collapsed"
         )
 
+        # --- 📝 メッセージ欄を追加 ---
+        message = st.text_area(
+            "メッセージ（任意）",
+            placeholder="例：集合時間や持ち物など",
+            key=f"msg_{clicked_date}"
+        )
+
+
         # --- 登録ボタン ---
         if st.button("登録", key=f"reg_{clicked_date}"):
             if end_time <= start_time:
@@ -181,7 +194,8 @@ if cal_state:
                     "end_hour": end_time.hour,
                     "end_minute": end_time.minute,
                     "participants": [],
-                    "absent": []
+                    "absent": [],
+                    "message": message
                 }])], ignore_index=True)
                 save_reservations(df_res)
                 st.success(f"{clicked_date_jst} に {facility} を登録しました")
@@ -207,7 +221,9 @@ if cal_state:
     ステータス: {r['status']}<br>
     時間:<br> &nbsp;&nbsp;{int(r['start_hour']):02d}:{int(r['start_minute']):02d} - {int(r['end_hour']):02d}:{int(r['end_minute']):02d}<br>
     参加者:<br> &nbsp;&nbsp;{', '.join(r['participants']) if r['participants'] else 'なし'}<br>
-    不参加者:<br> &nbsp;&nbsp;{', '.join(r['absent']) if r['absent'] else 'なし'}
+    不参加者:<br> &nbsp;&nbsp;{', '.join(r['absent']) if r['absent'] else 'なし'}<br>
+    メッセージ:<br> &nbsp;&nbsp;{r['message'] if pd.notna(r.get('message')) and r['message'] else '（なし）'}
+
     """, unsafe_allow_html=True)
 
             # 参加表明フォーム
@@ -236,10 +252,18 @@ if cal_state:
 
             # ---- イベント操作 ----
             st.subheader("イベント操作")
-            operation = st.radio("操作を選択", ["ステータス変更","削除"], key=f"ev_op_{idx}")
+            operation = st.radio(
+                "操作を選択",
+                ["ステータス変更", "メッセージ変更","削除"],
+                key=f"ev_op_{idx}"
+            )
 
             if operation == "ステータス変更":
-                new_status = st.selectbox("新しいステータス", ["確保","抽選中","中止","完了"], key=f"status_change_{idx}")
+                new_status = st.selectbox(
+                    "新しいステータス",
+                    ["確保", "抽選中", "中止", "完了"],
+                    key=f"status_change_{idx}"
+                )
                 if st.button("変更を反映", key=f"apply_status_{idx}"):
                     df_res.at[idx, "status"] = new_status
                     save_reservations(df_res)
@@ -255,4 +279,17 @@ if cal_state:
                         save_reservations(df_res)
                         st.success("イベントを削除しました")
                         st.experimental_rerun()
+
+            elif operation == "メッセージ変更":
+                new_message = st.text_area(
+                    "メッセージを入力",
+                    value=r.get("message", ""),
+                    key=f"message_change_{idx}",
+                    height=100
+                )
+                if st.button("変更を反映", key=f"apply_message_{idx}"):
+                    df_res.at[idx, "message"] = new_message
+                    save_reservations(df_res)
+                    st.success("イベントのメッセージを変更しました")
+                    st.experimental_rerun()
 
