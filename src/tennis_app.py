@@ -149,6 +149,10 @@ if cal_state:
     if callback == "dateClick":
         clicked_date = cal_state["dateClick"]["date"]
         clicked_date_jst = to_jst_date(clicked_date)
+
+        st.session_state['clicked_date'] = clicked_date
+        st.session_state['clicked_date_jst'] = clicked_date_jst
+    
         st.info(f"📅 {clicked_date_jst} の予約を確認/登録")
 
         # ---- 日付クリック時の施設名入力 ----
@@ -195,6 +199,9 @@ if cal_state:
 
 
         # --- 登録ボタン ---
+        clicked_date = st.session_state.get('clicked_date')
+        clicked_date_jst = st.session_state.get('clicked_date_jst')
+
         if st.button("登録", key=f"reg_{clicked_date}"):
             if end_time <= start_time:
                 st.warning("⚠️ 終了時間は開始時間より後にしてください。")
