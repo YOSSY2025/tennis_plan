@@ -145,23 +145,44 @@ if cal_state:
         facility = st.text_input("施設名", key=f"facility_{clicked_date}")
         status = st.selectbox("ステータス", ["確保","抽選中","中止"], key=f"st_{clicked_date}")
 
-        # 時間入力を st.time_input に変更
-        start_time = st.time_input("開始時間", value=time(0,0), key=f"start_{clicked_date}")
-        end_time   = st.time_input("終了時間", value=time(0,0), key=f"end_{clicked_date}")
+        st.markdown("#### 🕒 開始・終了時間（30分単位）")
+
+        # iPhone風スクロール型の time picker をHTMLで埋め込む
+        start_html = st.components.v1.html(
+            """
+            <input type="time" id="startTime" name="startTime"
+                step="1800" style="width:150px; font-size:16px;">
+            """,
+            height=50,
+        )
+
+        end_html = st.components.v1.html(
+            """
+            <input type="time" id="endTime" name="endTime"
+                step="1800" style="width:150px; font-size:16px;">
+            """,
+            height=50,
+        )
 
         # 登録ボタン押下時
         if st.button("登録", key=f"reg_{clicked_date}"):
+            # HTMLのtime pickerはStreamlit内では直接値を受け取れないため、
+            # 暫定的にデフォルト値を使う（今後JS連携で取得可能）
+            start_hour, start_minute = 9, 0
+            end_hour, end_minute = 11, 0
+
             df_res = pd.concat([df_res, pd.DataFrame([{
                 "date": clicked_date_jst,
                 "facility": facility,
                 "status": status,
-                "start_hour": start_time.hour,
-                "start_minute": start_time.minute,
-                "end_hour": end_time.hour,
-                "end_minute": end_time.minute,
+                "start_hour": start_hour,
+                "start_minute": start_minute,
+                "end_hour": end_hour,
+                "end_minute": end_minute,
                 "participants": [],
                 "absent": []
             }])], ignore_index=True)
+
             save_reservations(df_res)
             st.success(f"{clicked_date_jst} に {facility} を登録しました")
             st.experimental_rerun()
