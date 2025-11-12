@@ -238,7 +238,7 @@ if cal_state:
                     }])], ignore_index=True)
                     save_reservations(df_res)
                     st.success(f"{clicked_date_jst} に {facility} を登録しました")
-                    st.rerun()
+                    st.experimental_rerun()
 
 
 # ---- イベントクリック ----
@@ -318,7 +318,7 @@ if cal_state:
                 df_res.at[idx, "absent"] = absent
                 save_reservations(df_res)
                 st.success(f"{nick} は {part} に設定されました")
-                st.rerun()
+                st.experimental_rerun()
 
             # イベント操作
             st.markdown("---")
@@ -339,7 +339,7 @@ if cal_state:
                     df_res.at[idx, "status"] = new_status
                     save_reservations(df_res)
                     st.success(f"イベントのステータスを {new_status} に変更しました")
-                    st.rerun()
+                    st.experimental_rerun()
 
             elif operation == "削除":
                 st.warning("⚠️ このイベントを削除しようとしています。")
@@ -349,7 +349,7 @@ if cal_state:
                         df_res = df_res.drop(idx).reset_index(drop=True)
                         save_reservations(df_res)
                         st.success("イベントを削除しました")
-                        st.rerun()
+                        st.experimental_rerun()
 
             elif operation == "メッセージ変更":
                 new_message = st.text_area(
@@ -362,4 +362,4 @@ if cal_state:
                     df_res.at[idx, "message"] = new_message
                     save_reservations(df_res)
                     st.success("イベントのメッセージを変更しました")
-                    st.rerun()
+                    st.experimental_rerun()
