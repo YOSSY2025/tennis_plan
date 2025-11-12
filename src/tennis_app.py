@@ -15,7 +15,7 @@ if not os.path.exists(os.path.join(BASE_DIR, "data")):
 if not os.path.exists(CSV_PATH):
     df_init = pd.DataFrame(columns=[
         "date","facility","status","start_hour","start_minute",
-        "end_hour","end_minute","participants","absent"
+        "end_hour","end_minute","participants","absent","message"
     ])
     df_init.to_csv(CSV_PATH, index=False)
 
@@ -28,9 +28,9 @@ def load_reservations():
         df["date"] = []
     df["participants"] = df["participants"].fillna("").apply(lambda x: x.split(";") if x else [])
     df["absent"] = df["absent"].fillna("").apply(lambda x: x.split(";") if x else [])
+    if "message" not in df.columns:
+        df["message"] = ""
     df["message"] = df["message"].fillna("")
-
-    return df
     return df
 
 def save_reservations(df):
@@ -202,25 +202,26 @@ if cal_state:
         clicked_date = st.session_state.get('clicked_date')
         clicked_date_jst = st.session_state.get('clicked_date_jst')
 
-        if st.button("登録", key=f"reg_{clicked_date}"):
-            if end_time <= start_time:
-                st.warning("⚠️ 終了時間は開始時間より後にしてください。")
-            else:
-                df_res = pd.concat([df_res, pd.DataFrame([{
-                    "date": clicked_date_jst,
-                    "facility": facility,
-                    "status": status,
-                    "start_hour": start_time.hour,
-                    "start_minute": start_time.minute,
-                    "end_hour": end_time.hour,
-                    "end_minute": end_time.minute,
-                    "participants": [],
-                    "absent": [],
-                    "message": message
-                }])], ignore_index=True)
-                save_reservations(df_res)
-                st.success(f"{clicked_date_jst} に {facility} を登録しました")
-                st.experimental_rerun()
+        if clicked_date is not None:
+            if st.button("登録", key=f"reg_{clicked_date}"):
+                if end_time <= start_time:
+                    st.warning("⚠️ 終了時間は開始時間より後にしてください。")
+                else:
+                    df_res = pd.concat([df_res, pd.DataFrame([{
+                        "date": clicked_date_jst,
+                        "facility": facility,
+                        "status": status,
+                        "start_hour": start_time.hour,
+                        "start_minute": start_time.minute,
+                        "end_hour": end_time.hour,
+                        "end_minute": end_time.minute,
+                        "participants": [],
+                        "absent": [],
+                        "message": message
+                    }])], ignore_index=True)
+                    save_reservations(df_res)
+                    st.success(f"{clicked_date_jst} に {facility} を登録しました")
+                    st.experimental_rerun()
 
 
 # ---- イベントクリック ----
