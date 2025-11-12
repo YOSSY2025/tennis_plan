@@ -153,11 +153,20 @@ if cal_state:
         st.session_state['clicked_date'] = clicked_date
         st.session_state['clicked_date_jst'] = clicked_date_jst
     
-        # スクロール用のアンカーと自動スクロール
-        st.markdown('<div id="form-section"></div>', unsafe_allow_html=True)
+        # スクロール用のマーカーと複数の方法でスクロール
+        st.markdown('<a id="form-section"></a>', unsafe_allow_html=True)
+        
+        # 方法1: CSS + JavaScript による自動スクロール
         st.markdown("""
         <script>
-        document.getElementById('form-section').scrollIntoView({behavior: 'smooth'});
+        setTimeout(function() {
+            const elem = document.querySelector('a[id="form-section"]');
+            if (elem) {
+                elem.scrollIntoView({behavior: 'smooth', block: 'start'});
+            } else {
+                window.scrollBy(0, window.innerHeight);
+            }
+        }, 100);
         </script>
         """, unsafe_allow_html=True)
         
@@ -237,11 +246,18 @@ if cal_state:
         ev = cal_state["eventClick"]["event"]
         idx = int(ev["id"])
         
-        # スクロール用のアンカーと自動スクロール
-        st.markdown('<div id="form-section"></div>', unsafe_allow_html=True)
+        # スクロール用のマーカーと複数の方法でスクロール
+        st.markdown('<a id="form-section"></a>', unsafe_allow_html=True)
         st.markdown("""
         <script>
-        document.getElementById('form-section').scrollIntoView({behavior: 'smooth'});
+        setTimeout(function() {
+            const elem = document.querySelector('a[id="form-section"]');
+            if (elem) {
+                elem.scrollIntoView({behavior: 'smooth', block: 'start'});
+            } else {
+                window.scrollBy(0, window.innerHeight);
+            }
+        }, 100);
         </script>
         """, unsafe_allow_html=True)
         
