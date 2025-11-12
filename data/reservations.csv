@@ -1,2 +1,3 @@
-date,facility,status,start_hour,start_minute,end_hour,end_minute,participants,absent
-2025-11-11,大蔵第二運動場,完了,21,0,22,0,YOSSY;NOSSY;tesuto;,TOSSY
+date,facility,status,start_hour,start_minute,end_hour,end_minute,participants,absent,message
+2025-11-11,大蔵第二運動場,完了,21,0,22,0,YOSSY;NOSSY;tesuto;,TOSSY,
+2025-11-18,大蔵第二運動場,確保,21,0,22,0,,,
