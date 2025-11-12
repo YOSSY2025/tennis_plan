@@ -213,24 +213,25 @@ if cal_state:
                 st.success(f"{nick} は {part} に設定されました")
                 st.experimental_rerun()
 
-            # ===== イベント削除（確認→削除の順） =====
-            st.subheader("イベント削除")
+            # ---- イベント操作 ----
+            st.subheader("イベント操作")
+            operation = st.radio("操作を選択", ["ステータス変更","削除"], key=f"ev_op_{idx}")
 
-            # まず確認チェックをユーザーに入れてもらう
-            confirm = st.checkbox(
-                "このイベントを本当に削除しますか？（チェックすると削除ボタンが有効になります）",
-                key=f"confirm_del_{idx}"
-            )
-
-            if confirm:
-                # 確認が入っている場合のみ削除ボタンを表示（確定アクション）
-                if st.button("確定：イベントを削除する", key=f"del_confirm_{idx}"):
-                    # 削除実行
-                    df_res = df_res.drop(idx).reset_index(drop=True)
+            if operation == "ステータス変更":
+                new_status = st.selectbox("新しいステータス", ["確保","抽選中","中止","完了"], key=f"status_change_{idx}")
+                if st.button("変更を反映", key=f"apply_status_{idx}"):
+                    df_res.at[idx, "status"] = new_status
                     save_reservations(df_res)
-                    st.success(f"イベント「{r['facility']}」（{event_date}）を削除しました。")
+                    st.success(f"イベントのステータスを {new_status} に変更しました")
                     st.experimental_rerun()
-            else:
-                # 未確認時は削除ボタンを表示せず、注意文を出す
-                st.info("イベントを削除する場合は上のチェックを入れてください。")
+
+            elif operation == "削除":
+                st.warning("⚠️ このイベントを削除しようとしています。")
+                confirm_delete = st.checkbox("本当に削除しますか？", key=f"confirm_del_{idx}")
+                if confirm_delete:
+                    if st.button("削除を確定", key=f"delete_{idx}"):
+                        df_res = df_res.drop(idx).reset_index(drop=True)
+                        save_reservations(df_res)
+                        st.success("イベントを削除しました")
+                        st.experimental_rerun()
 
