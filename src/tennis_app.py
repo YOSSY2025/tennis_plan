@@ -153,6 +153,14 @@ if cal_state:
         st.session_state['clicked_date'] = clicked_date
         st.session_state['clicked_date_jst'] = clicked_date_jst
     
+        # スクロール用のアンカーと自動スクロール
+        st.markdown('<div id="form-section"></div>', unsafe_allow_html=True)
+        st.markdown("""
+        <script>
+        document.getElementById('form-section').scrollIntoView({behavior: 'smooth'});
+        </script>
+        """, unsafe_allow_html=True)
+        
         st.info(f"📅 {clicked_date_jst} の予約を確認/登録")
 
         # ---- 日付クリック時の施設名入力 ----
@@ -228,6 +236,14 @@ if cal_state:
     elif callback == "eventClick":
         ev = cal_state["eventClick"]["event"]
         idx = int(ev["id"])
+        
+        # スクロール用のアンカーと自動スクロール
+        st.markdown('<div id="form-section"></div>', unsafe_allow_html=True)
+        st.markdown("""
+        <script>
+        document.getElementById('form-section').scrollIntoView({behavior: 'smooth'});
+        </script>
+        """, unsafe_allow_html=True)
         
         if idx not in df_res.index:
             st.warning("このイベントは存在しません。")
