@@ -1,54 +1,52 @@
 import streamlit as st
 import pandas as pd
-import os
 from datetime import datetime, date, time, timedelta
 from streamlit_calendar import calendar
+import gspread
+from google.oauth2.service_account import Credentials
 
-# ===== CSVパス =====
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CSV_PATH = os.path.join(BASE_DIR, "data", "reservations.csv")
 
-# ===== データフォルダ作成 =====
-if not os.path.exists(os.path.join(BASE_DIR, "data")):
-    os.makedirs(os.path.join(BASE_DIR, "data"))
+# ===== Google Sheets 認証 =====
+service_account_info = st.secrets["google"]["service_account_json"]
+creds = Credentials.from_service_account_info(
+    eval(service_account_info),
+    scopes=["https://www.googleapis.com/auth/spreadsheets"]
+)
+gc = gspread.authorize(creds)
+sheet_id = st.secrets["google"]["sheet_id"]
+worksheet = gc.open_by_key(sheet_id).sheet1
 
-if not os.path.exists(CSV_PATH):
-    df_init = pd.DataFrame(columns=[
-        "date","facility","status","start_hour","start_minute",
-        "end_hour","end_minute","participants","absent","message"
-    ])
-    df_init.to_csv(CSV_PATH, index=False)
-
-# ===== CSV読み書き関数 =====
+# ===== Google Sheets 読み書き関数 =====
 def load_reservations():
-    df = pd.read_csv(CSV_PATH)
-    if "date" in df.columns:
-        df["date"] = pd.to_datetime(df["date"], errors="coerce").dt.date
-    else:
-        df["date"] = []
-    df["participants"] = df["participants"].fillna("").apply(lambda x: x.split(";") if x else [])
-    df["absent"] = df["absent"].fillna("").apply(lambda x: x.split(";") if x else [])
-    if "message" not in df.columns:
-        df["message"] = ""
-    df["message"] = df["message"].fillna("")
+    data = worksheet.get_all_records()
+    df = pd.DataFrame(data)
+    # participants, absent をリストに変換
+    for col in ["participants", "absent"]:
+        if col in df.columns:
+            df[col] = df[col].apply(lambda x: x.split(";") if x else [])
+        else:
+            df[col] = [[] for _ in range(len(df))]
     return df
 
 def save_reservations(df):
+    # participants, absent を文字列に変換
     df_to_save = df.copy()
-    df_to_save["date"] = df_to_save["date"].apply(lambda d: d.strftime("%Y-%m-%d") if isinstance(d, (date, datetime)) else "")
-    df_to_save["participants"] = df_to_save["participants"].apply(lambda lst: ";".join(lst) if isinstance(lst, list) else "")
-    df_to_save["absent"] = df_to_save["absent"].apply(lambda lst: ";".join(lst) if isinstance(lst, list) else "")
-    df_to_save["message"] = df_to_save["message"].fillna("")
+    for col in ["participants", "absent"]:
+        df_to_save[col] = df_to_save[col].apply(lambda lst: ";".join(lst) if isinstance(lst, list) else "")
+    # Google Sheets にアップデート
+    worksheet.clear()
+    worksheet.update([df_to_save.columns.values.tolist()] + df_to_save.values.tolist())
 
-    df_to_save.to_csv(CSV_PATH, index=False)
+# ===== JST変換関数 =====
+def to_jst_date(iso_str):
+    try:
+        dt = datetime.fromisoformat(iso_str.replace("Z", "+00:00"))
+        return (dt + timedelta(hours=9)).date()
+    except Exception:
+        if isinstance(iso_str, date):
+            return iso_str
+        return datetime.strptime(str(iso_str)[:10], "%Y-%m-%d").date()
 
-# ===== ステータスカラー =====
-status_color = {
-    "確保": {"bg":"#90ee90","text":"black"},
-    "抽選中": {"bg":"#ffd966","text":"black"},
-    "中止": {"bg":"#d3d3d3","text":"black"},
-    "完了": {"bg":"#d3d3d3","text":"black"}
-}
 
 # ===== JST変換 =====
 def to_jst_date(iso_str):
@@ -62,7 +60,7 @@ def to_jst_date(iso_str):
         return datetime.strptime(str(iso_str)[:10], "%Y-%m-%d").date()
 
 # ===== タイトル =====
-
+st.markdown("")
 
 st.markdown("<h3>🎾 テニスコート予約管理</h3>", unsafe_allow_html=True)
 
@@ -70,6 +68,13 @@ st.markdown("<h3>🎾 テニスコート予約管理</h3>", unsafe_allow_html=Tr
 df_res = load_reservations()
 
 # ===== カレンダーイベント生成 =====
+status_color = {
+    "確保": {"bg":"#90ee90","text":"black"},
+    "抽選中": {"bg":"#ffd966","text":"black"},
+    "中止": {"bg":"#d3d3d3","text":"black"},
+    "完了": {"bg":"#d3d3d3","text":"black"}
+}
+
 events = []
 for idx, r in df_res.iterrows():
     if pd.isna(r["date"]):
