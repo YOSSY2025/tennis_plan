@@ -8,9 +8,10 @@ import json
 from google.oauth2 import service_account
 
 # ===== Google Sheets 認証 =====
-service_account_info = json.loads(st.secrets["google"]["service_account_json"])
-
-creds = service_account.Credentials.from_service_account_info(service_account_info)
+service_account_file = st.secrets["google"]["service_account_file"]
+creds = service_account.Credentials.from_service_account_file(service_account_file)
+client = gspread.authorize(creds)
+sheet = client.open_by_key(st.secrets["google"]["sheet_id"])
 
 gc = gspread.authorize(creds)
 sheet_id = st.secrets["google"]["sheet_id"]
