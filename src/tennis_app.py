@@ -14,8 +14,9 @@ client = gspread.authorize(creds)
 sheet = client.open_by_key(st.secrets["google"]["sheet_id"])
 
 gc = gspread.authorize(creds)
-sheet_id = st.secrets["google"]["sheet_id"]
-worksheet = gc.open_by_key(sheet_id).sheet1
+#スプレッドシート接続
+sheet = client.open_by_key(st.secrets["google"]["sheet_id"])
+worksheet = sheet.sheet1  # 例：1枚目のシート
 
 # ===== Google Sheets 読み書き関数 =====
 def load_reservations():
