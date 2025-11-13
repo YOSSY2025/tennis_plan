@@ -4,14 +4,14 @@ from datetime import datetime, date, time, timedelta
 from streamlit_calendar import calendar
 import gspread
 from google.oauth2.service_account import Credentials
-
+import json
+from google.oauth2 import service_account
 
 # ===== Google Sheets 認証 =====
-service_account_info = st.secrets["google"]["service_account_json"]
-creds = Credentials.from_service_account_info(
-    eval(service_account_info),
-    scopes=["https://www.googleapis.com/auth/spreadsheets"]
-)
+service_account_info = json.loads(st.secrets["google"]["service_account_json"])
+creds = service_account.Credentials.from_service_account_info(
+    service_account_info)
+
 gc = gspread.authorize(creds)
 sheet_id = st.secrets["google"]["sheet_id"]
 worksheet = gc.open_by_key(sheet_id).sheet1
