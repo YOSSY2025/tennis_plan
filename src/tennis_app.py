@@ -132,7 +132,7 @@ st.markdown("""
 
 /* ← 最重要：最近の Streamlit はこのセレクタで余白を適用する必要がある */
 .stAppViewContainer {
-    margin-top: 3.5rem !important;
+    margin-top: 4.2rem !important;
 }
 
 /* これが古いセレクタ。環境によっては効かない */
