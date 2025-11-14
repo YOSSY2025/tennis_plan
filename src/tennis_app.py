@@ -22,7 +22,7 @@ sheetid = "1_l57W7GIx1OR56uaWt8OBZ1_Lbr8GtWwS_QfvqFrKp0"
 worksheet = client.open_by_key(sheetid).sheet1
 
 #データ読み込み
-records = sheet.get_all_records()
+records = worksheet.get_all_records()
 df = pd.DataFrame(records)
 
 # ===== Google Sheets 読み書き関数 =====
