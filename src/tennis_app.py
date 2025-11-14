@@ -19,7 +19,24 @@ client = gspread.authorize(creds)
 
 #シートにアクセス。シートIDを指定する
 sheetid = "1_l57W7GIx1OR56uaWt8OBZ1_Lbr8GtWwS_QfvqFrKp0"
-worksheet = client.open_by_key(sheetid).sheet1
+
+@st.cache_resource(show_spinner=False)
+def get_gsheet():
+    scope = [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive"
+    ]
+    creds = Credentials.from_service_account_info(
+        st.secrets["google"]["service_account"],
+        scopes=scope
+    )
+    client = gspread.authorize(creds)
+    sheetid = st.secrets["google"]["sheet_id"]
+    worksheet = client.open_by_key(sheetid).sheet1
+    return worksheet
+
+worksheet = get_gsheet()
+
 
 #データ読み込み
 records = worksheet.get_all_records()
