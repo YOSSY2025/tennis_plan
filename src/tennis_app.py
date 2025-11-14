@@ -196,6 +196,16 @@ for idx, r in df_res.iterrows():
         "textColor": color["text"]
     })
 
+
+
+# 当月の年月を取得
+today = datetime.today()
+year, month = today.year, today.month
+
+# events リストを当月だけにフィルタ
+events = [e for e in events if datetime.fromisoformat(e["start"]).year == year and
+                                datetime.fromisoformat(e["start"]).month == month]
+
 # ===== カレンダー表示 =====
 cal_state = calendar(
     events=events,
