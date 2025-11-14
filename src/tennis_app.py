@@ -142,7 +142,7 @@ st.markdown("""
 
 /* コンテナの上の余白を最小化 */
 .block-container {
-    padding-top: 4.0rem !important;
+    padding-top: 3.0rem !important;
 }
 
 </style>
