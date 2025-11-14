@@ -19,7 +19,7 @@ client = gspread.authorize(creds)
 
 #シートにアクセス。シートIDを指定する
 sheetid = "1_l57W7GIx1OR56uaWt8OBZ1_Lbr8GtWwS_QfvqFrKp0"
-sheet = client.open_by_key(sheetid).sheet1
+worksheet = client.open_by_key(sheetid).sheet1
 
 #データ読み込み
 records = sheet.get_all_records()
