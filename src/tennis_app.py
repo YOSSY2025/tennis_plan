@@ -382,6 +382,7 @@ if cal_state:
                 #もしnickが空文字の場合は何もしない
                 if nick == "":
                     st.warning("⚠️ ニックネームが選択されていません。")
+                else:
                     if part == "参加":
                         participants.append(nick)
                     elif part == "不参加":
