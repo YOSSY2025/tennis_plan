@@ -354,7 +354,8 @@ if cal_state:
             past_nicks = list(set([n for lst in df_res['participants'].tolist() + df_res['absent'].tolist() for n in lst if n]))
             #past_nicksをあいうえお順にソート
             past_nicks.sort(key=lambda x: x.encode('utf-8'))
-            nick_select = st.selectbox("ニックネームを選択（新規は入力欄に）", options=past_nicks + ["新規"], index=0)
+            #デフォルトは(選択してください)のメッセージをいれておく
+            nick_select = st.selectbox("ニックネームを選択（新規は入力欄に）", options=["(選択してください)"] + past_nicks + ["新規"], index=0)
 
             # 新規の場合だけ入力欄を表示
             if nick_select == "新規":
