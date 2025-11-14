@@ -389,11 +389,11 @@ if cal_state:
                         absent.append(nick)
                 # 削除は既にリストから削除済み
 
-                df_res.at[idx, "participants"] = participants
-                df_res.at[idx, "absent"] = absent
-                save_reservations(df_res)
-                st.success(f"{nick} は {part} に設定されました")
-                st.rerun()
+                    df_res.at[idx, "participants"] = participants
+                    df_res.at[idx, "absent"] = absent
+                    save_reservations(df_res)
+                    st.success(f"{nick} は {part} に設定されました")
+                    st.rerun()
 
             # イベント操作
             st.markdown("---")
