@@ -361,8 +361,7 @@ if cal_state:
             if nick_select == "新規":
                 nick = st.text_input("ニックネームを入力")
             elif nick_select == "(選択してください)":
-                #エラーメッセージを出して登録しないようにする
-                st.error("⚠️ ニックネームを選択または入力してください。")
+                nick = ""
             else:
                 nick = nick_select
 
@@ -380,10 +379,13 @@ if cal_state:
                     absent.remove(nick)
 
                 # 反映
-                if part == "参加":
-                    participants.append(nick)
-                elif part == "不参加":
-                    absent.append(nick)
+                #もしnickが空文字の場合は何もしない
+                if nick == "":
+                    st.warning("⚠️ ニックネームが選択されていません。")
+                    if part == "参加":
+                        participants.append(nick)
+                    elif part == "不参加":
+                        absent.append(nick)
                 # 削除は既にリストから削除済み
 
                 df_res.at[idx, "participants"] = participants
