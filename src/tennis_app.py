@@ -189,15 +189,14 @@ cal_state = calendar(
 st.markdown("""
 <style>
 
-/* ページ上部の余白を限界まで削る（タイトルが最上部に来る） */
-.main > div {
-    padding-top: 0rem !important;
+/* Streamlit の固定ヘッダー高さに合わせて全体を下にずらす */
+.stApp {
+    padding-top: 3.5rem !important;   /* ← ここが決定的に重要 */
 }
 
-/* コンテナの余白も最小化 */
+/* コンテナ側の余白は減らす（タイトルを近づける） */
 .block-container {
     padding-top: 0.2rem !important;
-    margin-top: 0rem !important;
 }
 
 /* カレンダーの横スクロールを防止 */
@@ -205,16 +204,6 @@ st.markdown("""
     width: 100% !important;
     max-width: 100% !important;
     overflow-x: hidden !important;
-}
-
-/* スマホ最適化 */
-@media (max-width: 768px) {
-    .fc {
-        font-size: 0.8rem !important;
-    }
-    .fc-toolbar-title {
-        font-size: 1rem !important;
-    }
 }
 
 </style>
