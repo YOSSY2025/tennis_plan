@@ -188,20 +188,26 @@ cal_state = calendar(
 # ===== CSSで親要素の高さを自然にする =====
 st.markdown("""
 <style>
-/* Streamlitのコンテナの余白を調整 */
-.block-container {
-    padding-top: 0.5rem !important;
-    padding-bottom: 0.5rem !important;
+
+/* ページ上部の余白を限界まで削る（タイトルが最上部に来る） */
+.main > div {
+    padding-top: 0rem !important;
 }
 
-/* カレンダーの横スクロールを防ぐ */
+/* コンテナの余白も最小化 */
+.block-container {
+    padding-top: 0.2rem !important;
+    margin-top: 0rem !important;
+}
+
+/* カレンダーの横スクロールを防止 */
 .fc {
     width: 100% !important;
     max-width: 100% !important;
     overflow-x: hidden !important;
 }
 
-/* スマホ向けに最適化 */
+/* スマホ最適化 */
 @media (max-width: 768px) {
     .fc {
         font-size: 0.8rem !important;
@@ -210,6 +216,7 @@ st.markdown("""
         font-size: 1rem !important;
     }
 }
+
 </style>
 """, unsafe_allow_html=True)
 
