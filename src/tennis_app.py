@@ -130,25 +130,24 @@ def to_jst_date(iso_str):
 st.markdown("""
 <style>
 
-/* Streamlit の固定ヘッダー高さに合わせて全体を下にずらす */
+/* ← 最重要：最近の Streamlit はこのセレクタで余白を適用する必要がある */
+.stAppViewContainer {
+    margin-top: 3.5rem !important;
+}
+
+/* これが古いセレクタ。環境によっては効かない */
 .stApp {
-    padding-top: 3.5rem !important;   /* ← ここが決定的に重要 */
+    padding-top: 0 !important;
 }
 
-/* コンテナ側の余白は減らす（タイトルを近づける） */
+/* コンテナの上の余白を最小化 */
 .block-container {
-    padding-top: 0.2rem !important;
-}
-
-/* カレンダーの横スクロールを防止 */
-.fc {
-    width: 100% !important;
-    max-width: 100% !important;
-    overflow-x: hidden !important;
+    padding-top: 0.5rem !important;
 }
 
 </style>
 """, unsafe_allow_html=True)
+
 
 
 
