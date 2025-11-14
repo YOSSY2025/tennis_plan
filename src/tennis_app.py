@@ -132,7 +132,7 @@ st.markdown("""
 
 /* ← 最重要：最近の Streamlit はこのセレクタで余白を適用する必要がある */
 .stAppViewContainer {
-    margin-top: 4.2rem !important;
+    margin-top: 0.5rem !important;
 }
 
 /* これが古いセレクタ。環境によっては効かない */
@@ -142,7 +142,7 @@ st.markdown("""
 
 /* コンテナの上の余白を最小化 */
 .block-container {
-    padding-top: 0.5rem !important;
+    padding-top: 4.0rem !important;
 }
 
 </style>
