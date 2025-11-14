@@ -8,15 +8,22 @@ import json
 from google.oauth2 import service_account
 
 # ===== Google Sheets 認証 =====
-service_account_file = st.secrets["google"]["service_account_file"]
-creds = service_account.Credentials.from_service_account_file(service_account_file)
-client = gspread.authorize(creds)
-sheet = client.open_by_key(st.secrets["google"]["sheet_id"])
 
-gc = gspread.authorize(creds)
-#スプレッドシート接続
-sheet = client.open_by_key(st.secrets["google"]["sheet_id"])
-worksheet = sheet.sheet1  # 例：1枚目のシート
+google_secrets = st.secrets["google"]
+creds = Credentials.from_service_account_info(
+    dict(google_secrets),
+    scopes=["https://www.googleapis.com/auth/spreadsheets"]
+)
+
+client = gspread.authorize(creds)
+
+#シートにアクセス。シートIDを指定する
+sheetid = "1_l57W7GIx1OR56uaWt8OBZ1_Lbr8GtWwS_QfvqFrKp0"
+sheet = client.open_by_key(sheetid).sheet1
+
+#データ読み込み
+records = sheet.get_all_records()
+df = pd.DataFrame(records)
 
 # ===== Google Sheets 読み書き関数 =====
 def load_reservations():
