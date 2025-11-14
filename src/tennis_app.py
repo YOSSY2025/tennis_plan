@@ -245,11 +245,13 @@ if cal_state:
             past_facilities = df_res['facility'].dropna().unique().tolist()
         else:
             past_facilities = []
-        facility_select = st.selectbox("施設を選択（新規は入力欄に入力）", options=past_facilities + ["新規"], index=0)
+        facility_select = st.selectbox("施設を選択（新規は入力欄に入力）", options=["(選択してください)"] + past_facilities + ["新規"], index=0)
 
         # 新規の場合だけ入力欄を表示
         if facility_select == "新規":
             facility = st.text_input("施設名を入力")
+        elif facility_select == "(選択してください)":
+            facility = ""
         else:
             facility = facility_select
 
@@ -291,24 +293,28 @@ if cal_state:
 
         if clicked_date is not None:
             if st.button("登録", key=f"reg_{clicked_date}"):
-                if end_time <= start_time:
-                    st.warning("⚠️ 終了時間は開始時間より後にしてください。")
+                #もしfacilityが空文字の場合は何もしない
+                if facility == "":
+                    st.warning("⚠️ 施設名が選択されていません。")
                 else:
-                    df_res = pd.concat([df_res, pd.DataFrame([{
-                        "date": clicked_date_jst,
-                        "facility": facility,
-                        "status": status,
-                        "start_hour": start_time.hour,
-                        "start_minute": start_time.minute,
-                        "end_hour": end_time.hour,
-                        "end_minute": end_time.minute,
-                        "participants": [],
-                        "absent": [],
-                        "message": message
-                    }])], ignore_index=True)
-                    save_reservations(df_res)
-                    st.success(f"{clicked_date_jst} に {facility} を登録しました")
-                    st.rerun()
+                    if end_time <= start_time:
+                        st.warning("⚠️ 終了時間は開始時間より後にしてください。")
+                    else:
+                        df_res = pd.concat([df_res, pd.DataFrame([{
+                            "date": clicked_date_jst,
+                            "facility": facility,
+                            "status": status,
+                            "start_hour": start_time.hour,
+                            "start_minute": start_time.minute,
+                            "end_hour": end_time.hour,
+                            "end_minute": end_time.minute,
+                            "participants": [],
+                            "absent": [],
+                            "message": message
+                        }])], ignore_index=True)
+                        save_reservations(df_res)
+                        st.success(f"{clicked_date_jst} に {facility} を登録しました")
+                        st.rerun()
 
 
 # ---- イベントクリック ----
