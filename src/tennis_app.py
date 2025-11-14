@@ -126,8 +126,33 @@ def to_jst_date(iso_str):
             return iso_str
         return datetime.strptime(str(iso_str)[:10], "%Y-%m-%d").date()
 
+# ===== CSSで親要素の高さを自然にする =====
+st.markdown("""
+<style>
+
+/* Streamlit の固定ヘッダー高さに合わせて全体を下にずらす */
+.stApp {
+    padding-top: 3.5rem !important;   /* ← ここが決定的に重要 */
+}
+
+/* コンテナ側の余白は減らす（タイトルを近づける） */
+.block-container {
+    padding-top: 0.2rem !important;
+}
+
+/* カレンダーの横スクロールを防止 */
+.fc {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+
+
 # ===== タイトル =====
-st.markdown("")
 
 st.markdown("<h3>🎾 テニスコート予約管理</h3>", unsafe_allow_html=True)
 
@@ -185,29 +210,6 @@ cal_state = calendar(
     key="reservation_calendar"
 )
 
-# ===== CSSで親要素の高さを自然にする =====
-st.markdown("""
-<style>
-
-/* Streamlit の固定ヘッダー高さに合わせて全体を下にずらす */
-.stApp {
-    padding-top: 3.5rem !important;   /* ← ここが決定的に重要 */
-}
-
-/* コンテナ側の余白は減らす（タイトルを近づける） */
-.block-container {
-    padding-top: 0.2rem !important;
-}
-
-/* カレンダーの横スクロールを防止 */
-.fc {
-    width: 100% !important;
-    max-width: 100% !important;
-    overflow-x: hidden !important;
-}
-
-</style>
-""", unsafe_allow_html=True)
 
 # ===== イベント操作 =====
 if cal_state:
