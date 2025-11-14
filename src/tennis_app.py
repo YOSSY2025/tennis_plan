@@ -10,28 +10,16 @@ from google.oauth2 import service_account
 # ===== Google Sheets 認証 =====
 
 google_secrets = st.secrets["google"]
-creds = Credentials.from_service_account_info(
-    dict(google_secrets),
-    scopes=["https://www.googleapis.com/auth/spreadsheets"]
-)
-
-client = gspread.authorize(creds)
-
-#シートにアクセス。シートIDを指定する
-sheetid = "1_l57W7GIx1OR56uaWt8OBZ1_Lbr8GtWwS_QfvqFrKp0"
 
 @st.cache_resource(show_spinner=False)
 def get_gsheet():
-    scope = [
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive"
-    ]
+    scope = ["https://www.googleapis.com/auth/spreadsheets"]
     creds = Credentials.from_service_account_info(
-        st.secrets["google"]["service_account"],
-        scopes=scope
+    dict(google_secrets)
     )
+
     client = gspread.authorize(creds)
-    sheetid = st.secrets["google"]["sheet_id"]
+    sheetid = "1_l57W7GIx1OR56uaWt8OBZ1_Lbr8GtWwS_QfvqFrKp0"
     worksheet = client.open_by_key(sheetid).sheet1
     return worksheet
 
