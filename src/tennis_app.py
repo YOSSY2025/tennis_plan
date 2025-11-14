@@ -360,6 +360,8 @@ if cal_state:
             # 新規の場合だけ入力欄を表示
             if nick_select == "新規":
                 nick = st.text_input("ニックネームを入力")
+            elif nick_select == "(選択してください)":
+                nick = ""
             else:
                 nick = nick_select
 
