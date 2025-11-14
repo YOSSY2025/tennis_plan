@@ -142,7 +142,7 @@ st.markdown("""
 
 /* コンテナの上の余白を最小化 */
 .block-container {
-    padding-top: 3.0rem !important;
+    padding-top: 2.0rem !important; /* ここでタイトルの位置が変わる必要に応じて調整 */
 }
 
 </style>
