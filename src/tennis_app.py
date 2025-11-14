@@ -352,7 +352,7 @@ if cal_state:
             # ニックネーム選択
             # 過去登録済みニックネーム
             past_nicks = list(set([n for lst in df_res['participants'].tolist() + df_res['absent'].tolist() for n in lst if n]))
-            nick_select = st.selectbox("ニックネームを選択（新規は入力欄に）", options=past_nicks + ["新規"], index=0)
+            nick_select = st.selectbox("ニックネームを選択（新規は入力欄に）", options=["新規"]+past_nicks, index=0)
 
             # 新規の場合だけ入力欄を表示
             if nick_select == "新規":
