@@ -361,7 +361,8 @@ if cal_state:
             if nick_select == "新規":
                 nick = st.text_input("ニックネームを入力")
             elif nick_select == "(選択してください)":
-                nick = ""
+                #エラーメッセージを出して登録しないようにする
+                st.error("⚠️ ニックネームを選択または入力してください。")
             else:
                 nick = nick_select
 
