@@ -29,22 +29,80 @@ df = pd.DataFrame(records)
 def load_reservations():
     data = worksheet.get_all_records()
     df = pd.DataFrame(data)
+
+    # 期待されるカラムを確実に用意する
+    expected_cols = [
+        "date","facility","status","start_hour","start_minute",
+        "end_hour","end_minute","participants","absent","message"
+    ]
+    for c in expected_cols:
+        if c not in df.columns:
+            # 欠けているカラムは空文字で埋める（participants/absent は後でリスト化）
+            df[c] = ""
+
+    # 日付パース
+    df["date"] = pd.to_datetime(df["date"], errors="coerce").dt.date
+
+    # 時刻カラムを整数化（文字列や空欄が混在する可能性を吸収）
+    for col in ["start_hour", "start_minute", "end_hour", "end_minute"]:
+        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0).astype(int)
+
     # participants, absent をリストに変換
-    for col in ["participants", "absent"]:
-        if col in df.columns:
-            df[col] = df[col].apply(lambda x: x.split(";") if x else [])
-        else:
-            df[col] = [[] for _ in range(len(df))]
+    def _to_list_cell(x):
+        if isinstance(x, (list, tuple)):
+            return list(x)
+        if pd.isna(x) or x == "":
+            return []
+        return str(x).split(";")
+
+    df["participants"] = df["participants"].apply(_to_list_cell)
+    df["absent"] = df["absent"].apply(_to_list_cell)
+
+    # message を空文字で埋める
+    df["message"] = df["message"].fillna("")
+
     return df
 
 def save_reservations(df):
     # participants, absent を文字列に変換
     df_to_save = df.copy()
     for col in ["participants", "absent"]:
-        df_to_save[col] = df_to_save[col].apply(lambda lst: ";".join(lst) if isinstance(lst, list) else "")
+        if col in df_to_save.columns:
+            df_to_save[col] = df_to_save[col].apply(lambda lst: ";".join(lst) if isinstance(lst, (list, tuple)) else (lst if pd.notnull(lst) else ""))
+
+    # date を ISO 文字列に変換しておく
+    if "date" in df_to_save.columns:
+        df_to_save["date"] = df_to_save["date"].apply(lambda d: d.isoformat() if isinstance(d, (date, datetime, pd.Timestamp)) else (str(d) if pd.notnull(d) else ""))
+
+    # NaN を空文字にし、すべてセルを JSON 互換なプリミティブに変換する
+    df_to_save = df_to_save.where(pd.notnull(df_to_save), "")
+
+    def _serialize_cell(v):
+        # datetime-like
+        if isinstance(v, (date, datetime, pd.Timestamp)):
+            return v.isoformat()
+        # list/tuple -> join
+        if isinstance(v, (list, tuple)):
+            return ";".join(map(str, v))
+        # primitives
+        if isinstance(v, (str, int, float, bool)):
+            return v
+        # fallback: empty string for NaN/None, else str()
+        try:
+            if pd.isna(v):
+                return ""
+        except Exception:
+            pass
+        return str(v)
+
+    values = [df_to_save.columns.values.tolist()]
+    # apply serialization per-cell to ensure JSON-serializable types
+    ser_df = df_to_save.applymap(_serialize_cell)
+    values += ser_df.values.tolist()
+
     # Google Sheets にアップデート
     worksheet.clear()
-    worksheet.update([df_to_save.columns.values.tolist()] + df_to_save.values.tolist())
+    worksheet.update(values)
 
 # ===== JST変換関数 =====
 def to_jst_date(iso_str):
