@@ -14,8 +14,10 @@ google_secrets = st.secrets["google"]
 @st.cache_resource(show_spinner=False)
 def get_gsheet():
     scope = ["https://www.googleapis.com/auth/spreadsheets"]
+
     creds = Credentials.from_service_account_info(
-    dict(google_secrets)
+        dict(google_secrets),
+        scopes=scope
     )
 
     client = gspread.authorize(creds)
