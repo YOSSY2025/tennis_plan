@@ -178,8 +178,11 @@ if cal_state:
         st.info(f"📅 {clicked_date_jst} の予約を確認/登録")
 
         # ---- 日付クリック時の施設名入力 ----
-        # 過去登録済み施設
-        past_facilities = df_res['facility'].dropna().unique().tolist()
+        # 過去登録済み施設（データが空やカラム未存在の場合に対応）
+        if 'facility' in df_res.columns:
+            past_facilities = df_res['facility'].dropna().unique().tolist()
+        else:
+            past_facilities = []
         facility_select = st.selectbox("施設を選択（新規は入力欄に入力）", options=past_facilities + ["新規"], index=0)
 
         # 新規の場合だけ入力欄を表示
@@ -279,8 +282,11 @@ if cal_state:
     """, unsafe_allow_html=True)
 
             # 施設名選択（過去登録から選択可）
-            # 過去登録済み施設
-            past_facilities = df_res['facility'].dropna().unique().tolist()
+            # 過去登録済み施設（データが空やカラム未存在の場合に対応）
+            if 'facility' in df_res.columns:
+                past_facilities = df_res['facility'].dropna().unique().tolist()
+            else:
+                past_facilities = []
             # ニックネーム選択
             # 過去登録済みニックネーム
             past_nicks = list(set([n for lst in df_res['participants'].tolist() + df_res['absent'].tolist() for n in lst if n]))
