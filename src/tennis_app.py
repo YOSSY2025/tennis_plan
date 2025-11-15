@@ -473,8 +473,8 @@ if cal_state:
             past_nicks = list(set([n for lst in df_res['participants'].tolist()
                                     + df_res['absent'].tolist() for n in lst if n]))
             past_nicks.sort(key=lambda x: x.encode("utf-8"))  # 五十音順
-            nick = autocomplete_input("ニックネームを入力",past_nicks)
-            
+            nick = autocomplete_input("ニックネームを入力",past_nicks, key=f"nick_{idx}")
+        
 
             # 新規の場合だけ入力欄を表示
             # 参加状況
