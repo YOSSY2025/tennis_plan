@@ -194,7 +194,7 @@ def autocomplete_input(label, options, key="auto_input"):
             }}
 
             list.innerHTML = filtered.map(
-                o => `<div class='auto-item' onclick='selectItem("${o}")'>${o}</div>`
+                o => `<div class='auto-item' onclick='selectItem("${{o}}")'>${{o}}</div>`
             ).join("");
 
             list.style.display = "block";
