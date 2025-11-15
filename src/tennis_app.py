@@ -448,7 +448,7 @@ if cal_state:
             elif operation == "メッセージ変更":
                 new_message = st.text_area(
                     "メッセージを入力",
-                    value=r.get("message", ""),
+                    value=r.get("message", "").replace('<br>', '\n'),
                     key=f"message_change_{idx}",
                     height=100
                 )
