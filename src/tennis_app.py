@@ -134,32 +134,62 @@ def to_jst_date(iso_str):
         return datetime.strptime(str(iso_str)[:10], "%Y-%m-%d").date()
     
 # ===== ニックネーム選択方法 =====
-def nickname_input(past_nicks):
-    # 状態管理
-    if "nick_input" not in st.session_state:
-        st.session_state.nick_input = ""
-    if "nick_selected" not in st.session_state:
-        st.session_state.nick_selected = ""
+def dropdown_suggest(label, options):
+    # Session state
+    if "dd_input" not in st.session_state:
+        st.session_state.dd_input = ""
+    if "dd_open" not in st.session_state:
+        st.session_state.dd_open = False
 
-    # 入力欄
-    nick = st.text_input(
-        "ニックネーム",
-        value=st.session_state.nick_selected or "",
-        key="nick_input_box"
+    st.markdown(
+        """
+        <style>
+        .dropdown-box {
+            position: relative;
+        }
+        .dropdown-menu {
+            position: absolute;
+            background: white;
+            border: 1px solid #ddd;
+            width: 100%;
+            max-height: 180px;
+            overflow-y: auto;
+            border-radius: 4px;
+            z-index: 9999;
+        }
+        .dropdown-item {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+        }
+        .dropdown-item:hover {
+            background: #f0f0f0;
+            cursor: pointer;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
     )
 
-    # 候補フィルタ
-    filtered = [n for n in past_nicks if nick and nick in n]
+    # 入力欄（タップで下のリストが開く）
+    input_value = st.text_input(label, value=st.session_state.dd_input, key="drop_input")
 
-    # 候補表示（検索結果）
-    for name in filtered:
-        if st.button(name):
-            st.session_state.nick_selected = name
-            st.session_state.nick_input = name
-            st.rerun()
+    # クリックしたら開く
+    if st.button("▼ 候補を表示 / 非表示", key="toggle_btn"):
+        st.session_state.dd_open = not st.session_state.dd_open
 
-    # 最終値を返す
-    return st.session_state.nick_selected or nick
+    # 入力文字でフィルタ
+    filtered = [opt for opt in options if input_value in opt]
+
+    # プルダウン表示
+    if st.session_state.dd_open:
+        with st.container():
+            for opt in filtered:
+                if st.button(opt, key=f"dd_item_{opt}"):
+                    st.session_state.dd_input = opt
+                    st.session_state.dd_open = False
+                    st.rerun()
+
+    return st.session_state.dd_input or input_value
 
 
 
@@ -394,7 +424,7 @@ if cal_state:
 
             past_nicks.sort(key=lambda x: x.encode("utf-8"))  # 五十音順
 
-            nick = nickname_input(past_nicks)
+            nick = dropdown_suggest("ニックネーム", past_nicks)
 
             st.write("選択されたニックネーム:", nick)
 
