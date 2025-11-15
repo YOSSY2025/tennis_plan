@@ -134,33 +134,113 @@ def to_jst_date(iso_str):
         return datetime.strptime(str(iso_str)[:10], "%Y-%m-%d").date()
     
 # ===== ニックネーム選択方法 =====
-def nickname_input(past_nicks):
-    # 状態管理
-    if "nick_input" not in st.session_state:
-        st.session_state.nick_input = ""
-    if "nick_selected" not in st.session_state:
-        st.session_state.nick_selected = ""
+def autocomplete_input(label, options, key="auto_input"):
+    st.markdown("""
+    <style>
+    .auto-wrap {
+        position: relative;
+    }
+    .auto-suggest {
+        position: absolute;
+        top: 45px;
+        width: 100%;
+        background: white;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        max-height: 180px;
+        overflow-y: scroll;
+        z-index: 9999;
+    }
+    .auto-item {
+        padding: 8px;
+        border-bottom: 1px solid #eee;
+    }
+    .auto-item:hover {
+        background: #f0f0f0;
+        cursor: pointer;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
-    # 入力欄
-    nick = st.text_input(
-        "ニックネーム",
-        value=st.session_state.nick_selected or "",
-        key="nick_input_box"
+    # コンテナ（JavaScript が描画する領域）
+    container = st.empty()
+
+    # JS の作成
+    js_code = f"""
+    <script>
+    const options = {json.dumps(options)};
+
+    function createAuto() {{
+        const container = document.getElementById("auto-area");
+        if (!container) return;
+
+        container.innerHTML = `
+            <div class="auto-wrap">
+                <input id="auto-input" type="text" placeholder="{label}" style="width:100%;padding:8px;font-size:16px;">
+                <div id="auto-list" class="auto-suggest" style="display:none;"></div>
+            </div>
+        `;
+
+        const input = document.getElementById("auto-input");
+        const list = document.getElementById("auto-list");
+
+        input.addEventListener("input", function() {{
+            const text = input.value;
+            const filtered = options.filter(o => o.includes(text));
+
+            if (filtered.length === 0 || text === "") {{
+                list.style.display = "none";
+                return;
+            }}
+
+            list.innerHTML = filtered.map(
+                o => `<div class='auto-item' onclick='selectItem("${o}")'>${o}</div>`
+            ).join("");
+
+            list.style.display = "block";
+        }});
+
+        window.selectItem = function(value) {{
+            input.value = value;
+            list.style.display = "none";
+            window.parent.postMessage({{ key: "{key}", value: value }}, "*");
+        }};
+    }}
+
+    window.addEventListener("message", (event) => {{
+        if (event.data === "create_auto") {{
+            createAuto();
+        }}
+    }});
+    </script>
+    """
+
+    container.markdown(
+        f'<div id="auto-area"></div>{js_code}',
+        unsafe_allow_html=True
     )
 
-    # 候補フィルタ
-    filtered = [n for n in past_nicks if nick and nick in n]
+    # Streamlit ↔ JS 間通信
+    selected = st.session_state.get(key, "")
 
-    # 候補表示（検索結果）
-    for name in filtered:
-        if st.selectbox(name):
-            st.session_state.nick_selected = name
-            st.session_state.nick_input = name
-            st.rerun()
+    st.markdown(
+        f"""
+        <script>
+        window.parent.postMessage("create_auto", "*");
+        window.addEventListener("message", (event) => {{
+            if (event.data.key === "{key}") {{
+                window.parent.postMessage({{ setSessionState: {{
+                    key: "{key}",
+                    value: event.data.value
+                }}}}, "*");
+            }}
+        }});
+        </script>
+        """,
+        unsafe_allow_html=True
+    )
 
-    # 最終値を返す
-    return st.session_state.nick_selected or nick
-
+    return st.session_state.get(key, "")
 
 
 # ===== CSSで親要素の高さを自然にする =====
@@ -394,7 +474,7 @@ if cal_state:
 
             past_nicks.sort(key=lambda x: x.encode("utf-8"))  # 五十音順
 
-            nick = nickname_input(past_nicks)
+            nick = autocomplete_input("ニックネームを入力",past_nicks)
 
             st.write("選択されたニックネーム:", nick)
 
