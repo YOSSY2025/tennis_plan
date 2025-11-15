@@ -227,6 +227,8 @@ def autocomplete_input(label, options, key="auto_input"):
         f"""
         <script>
         window.parent.postMessage("create_auto", "*");
+        window.addEventListener("DOMContentLoaded", createAuto);
+
         window.addEventListener("message", (event) => {{
             if (event.data.key === "{key}") {{
                 window.parent.postMessage({{ setSessionState: {{
