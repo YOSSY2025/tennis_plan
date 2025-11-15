@@ -446,13 +446,12 @@ if cal_state:
                         st.rerun()
 
             elif operation == "メッセージ変更":
-                new_message_buf = st.text_area(
+                new_message = st.text_area(
                     "メッセージを入力",
                     value=r.get("message", ""),
                     key=f"message_change_{idx}",
                     height=100
                 )
-                new_message = new_message_buf.replace('\n', '<br>')
                 if st.button("変更を反映", key=f"apply_message_{idx}"):
                     df_res.at[idx, "message"] = new_message
                     save_reservations(df_res)
