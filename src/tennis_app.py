@@ -349,18 +349,6 @@ if cal_state:
     メッセージ:<br> &nbsp;&nbsp;{r['message'] if pd.notna(r.get('message')) and r['message'] else '（なし）'}
 
     """, unsafe_allow_html=True)
-            
-
-            #選択ボックス表示
-            st.markdown("""
-            <style>
-            /* selectboxがスクロールで切れないように調整 */
-            .stSelectbox > div {
-                overflow: visible !important;
-            }
-            </style>
-            """, unsafe_allow_html=True)
-
 
             # 施設名選択（過去登録から選択可）
             # 過去登録済み施設（データが空やカラム未存在の場合に対応）
@@ -370,19 +358,21 @@ if cal_state:
                 past_facilities = []
             # ニックネーム選択
             # 過去登録済みニックネーム
-            past_nicks = list(set([n for lst in df_res['participants'].tolist() + df_res['absent'].tolist() for n in lst if n]))
-            #past_nicksをあいうえお順にソート
-            past_nicks.sort(key=lambda x: x.encode('utf-8'))
-            #デフォルトは(選択してください)のメッセージをいれておく
-            nick_select = st.selectbox("ニックネームを選択（新規は入力欄に）", options=["(選択してください)"] + past_nicks + ["新規"], index=0)
+            past_nicks = sorted(
+                list(set([n for lst in df_res["participants"].tolist() + df_res["absent"].tolist() for n in lst if n])),
+                key=lambda x: x.encode('utf-8')
+            )            #デフォルトは(選択してください)のメッセージをいれておく
+            nick_input = st.text_input("ニックネーム検索 / 新規入力")
 
-            # 新規の場合だけ入力欄を表示
-            if nick_select == "新規":
-                nick = st.text_input("ニックネームを入力")
-            elif nick_select == "(選択してください)":
-                nick = ""
+            # 入力がある場合に候補を絞り込む
+            suggestions = [n for n in past_nicks if nick_input in n] if nick_input else past_nicks[:10]
+
+            # 候補を表示
+            if suggestions:
+                nick = st.selectbox("候補:", ["(選択してください)"] + suggestions)
             else:
-                nick = nick_select
+                st.info("該当する候補はありません。新規として扱います。")
+                nick = nick_input
 
             # 参加状況
             part = st.radio("参加状況", ["参加", "不参加", "削除"], key=f"part_{idx}")
@@ -400,7 +390,7 @@ if cal_state:
                 # 反映
                 #もしnickが空文字の場合は何もしない
                 if nick == "":
-                    st.warning("⚠️ ニックネームが選択されていません。")
+                    st.warning("⚠️ ニックネームが入力されていません。")
                 else:
                     if part == "参加":
                         participants.append(nick)
