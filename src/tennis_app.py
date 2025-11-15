@@ -197,6 +197,8 @@ for idx, r in df_res.iterrows():
     })
 
 
+
+
 # ===== カレンダー表示 =====
 cal_state = calendar(
     events=events,
@@ -358,21 +360,19 @@ if cal_state:
                 past_facilities = []
             # ニックネーム選択
             # 過去登録済みニックネーム
-            past_nicks = sorted(
-                list(set([n for lst in df_res["participants"].tolist() + df_res["absent"].tolist() for n in lst if n])),
-                key=lambda x: x.encode('utf-8')
-            )            #デフォルトは(選択してください)のメッセージをいれておく
-            nick_input = st.text_input("ニックネーム検索 / 新規入力")
+            past_nicks = list(set([n for lst in df_res['participants'].tolist() + df_res['absent'].tolist() for n in lst if n]))
+            #past_nicksをあいうえお順にソート
+            past_nicks.sort(key=lambda x: x.encode('utf-8'))
+            #デフォルトは(選択してください)のメッセージをいれておく
+            nick_select = st.selectbox("ニックネームを選択（新規は入力欄に）", options=["(選択してください)"] + past_nicks + ["新規"], index=0)
 
-            # 入力がある場合に候補を絞り込む
-            suggestions = [n for n in past_nicks if nick_input in n] if nick_input else past_nicks[:10]
-
-            # 候補を表示
-            if suggestions:
-                nick = st.selectbox("候補:", ["(選択してください)"] + suggestions)
+            # 新規の場合だけ入力欄を表示
+            if nick_select == "新規":
+                nick = st.text_input("ニックネームを入力")
+            elif nick_select == "(選択してください)":
+                nick = ""
             else:
-                st.info("該当する候補はありません。新規として扱います。")
-                nick = nick_input
+                nick = nick_select
 
             # 参加状況
             part = st.radio("参加状況", ["参加", "不参加", "削除"], key=f"part_{idx}")
@@ -390,7 +390,7 @@ if cal_state:
                 # 反映
                 #もしnickが空文字の場合は何もしない
                 if nick == "":
-                    st.warning("⚠️ ニックネームが入力されていません。")
+                    st.warning("⚠️ ニックネームが選択されていません。")
                 else:
                     if part == "参加":
                         participants.append(nick)
