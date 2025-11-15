@@ -349,6 +349,18 @@ if cal_state:
     メッセージ:<br> &nbsp;&nbsp;{r['message'] if pd.notna(r.get('message')) and r['message'] else '（なし）'}
 
     """, unsafe_allow_html=True)
+            
+
+            #選択ボックス表示
+            st.markdown("""
+            <style>
+            /* selectboxがスクロールで切れないように調整 */
+            .stSelectbox > div {
+                overflow: visible !important;
+            }
+            </style>
+            """, unsafe_allow_html=True)
+
 
             # 施設名選択（過去登録から選択可）
             # 過去登録済み施設（データが空やカラム未存在の場合に対応）
