@@ -132,6 +132,36 @@ def to_jst_date(iso_str):
         if isinstance(iso_str, date):
             return iso_str
         return datetime.strptime(str(iso_str)[:10], "%Y-%m-%d").date()
+    
+# ===== ニックネーム選択方法 =====
+def nickname_input(past_nicks):
+    # 状態管理
+    if "nick_input" not in st.session_state:
+        st.session_state.nick_input = ""
+    if "nick_selected" not in st.session_state:
+        st.session_state.nick_selected = ""
+
+    # 入力欄
+    nick = st.text_input(
+        "ニックネーム",
+        value=st.session_state.nick_selected or "",
+        key="nick_input_box"
+    )
+
+    # 候補フィルタ
+    filtered = [n for n in past_nicks if nick and nick in n]
+
+    # 候補表示（検索結果）
+    for name in filtered:
+        if st.button(name):
+            st.session_state.nick_selected = name
+            st.session_state.nick_input = name
+            st.rerun()
+
+    # 最終値を返す
+    return st.session_state.nick_selected or nick
+
+
 
 # ===== CSSで親要素の高さを自然にする =====
 st.markdown("""
@@ -341,16 +371,16 @@ if cal_state:
 
             # 詳細表示（改行対応）
             st.markdown(f"""
-    ### イベント詳細
-    日付: {event_date}<br>
-    施設: {r['facility']}<br>
-    ステータス: {r['status']}<br>
-    時間:<br> &nbsp;&nbsp;{int(r['start_hour']):02d}:{int(r['start_minute']):02d} - {int(r['end_hour']):02d}:{int(r['end_minute']):02d}<br>
-    参加者:<br> &nbsp;&nbsp;{', '.join(r['participants']) if r['participants'] else 'なし'}<br>
-    不参加者:<br> &nbsp;&nbsp;{', '.join(r['absent']) if r['absent'] else 'なし'}<br>
-    メッセージ:<br> &nbsp;&nbsp;{r['message'] if pd.notna(r.get('message')) and r['message'] else '（なし）'}
+            ### イベント詳細
+            日付: {event_date}<br>
+            施設: {r['facility']}<br>
+            ステータス: {r['status']}<br>
+            時間:<br> &nbsp;&nbsp;{int(r['start_hour']):02d}:{int(r['start_minute']):02d} - {int(r['end_hour']):02d}:{int(r['end_minute']):02d}<br>
+            参加者:<br> &nbsp;&nbsp;{', '.join(r['participants']) if r['participants'] else 'なし'}<br>
+            不参加者:<br> &nbsp;&nbsp;{', '.join(r['absent']) if r['absent'] else 'なし'}<br>
+            メッセージ:<br> &nbsp;&nbsp;{r['message'] if pd.notna(r.get('message')) and r['message'] else '（なし）'}
 
-    """, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
 
             # 施設名選択（過去登録から選択可）
             # 過去登録済み施設（データが空やカラム未存在の場合に対応）
@@ -359,21 +389,16 @@ if cal_state:
             else:
                 past_facilities = []
             # ニックネーム選択
-            # 過去登録済みニックネーム
-            past_nicks = list(set([n for lst in df_res['participants'].tolist() + df_res['absent'].tolist() for n in lst if n]))
-            #past_nicksをあいうえお順にソート
-            past_nicks.sort(key=lambda x: x.encode('utf-8'))
-            #デフォルトは(選択してください)のメッセージをいれておく
-            nick_select = st.selectbox("ニックネームを選択（新規は入力欄に）", options=["(選択してください)"] + past_nicks + ["新規"], index=0)
+            past_nicks = list(set([n for lst in df_res['participants'].tolist()
+                                    + df_res['absent'].tolist() for n in lst if n]))
+
+            past_nicks.sort(key=lambda x: x.encode("utf-8"))  # 五十音順
+
+            nick = nickname_input(past_nicks)
+
+            st.write("選択されたニックネーム:", nick)
 
             # 新規の場合だけ入力欄を表示
-            if nick_select == "新規":
-                nick = st.text_input("ニックネームを入力")
-            elif nick_select == "(選択してください)":
-                nick = ""
-            else:
-                nick = nick_select
-
             # 参加状況
             part = st.radio("参加状況", ["参加", "不参加", "削除"], key=f"part_{idx}")
 
