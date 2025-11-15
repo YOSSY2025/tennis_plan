@@ -283,11 +283,13 @@ if cal_state:
         )
 
         # --- 📝 メッセージ欄を追加 ---
-        message = st.text_area(
+        message_buf = st.text_area(
             "メッセージ（任意）",
             placeholder="例：集合時間や持ち物など",
             key=f"msg_{clicked_date}"
         )
+        message = message_buf.replace('\n', '<br>')    
+
 
 
         # --- 登録ボタン ---
@@ -373,11 +375,11 @@ if cal_state:
             past_nicks = sorted(set(past_nicks), key=lambda s: s)
 
             # 選択肢 + 新規入力をまとめて一箇所で表示
-            nick_choice = st.selectbox("ニックネームを選択または新規登録(文字入力で検索可能)",
-                                    options=["(ニックネームを選択)"] + past_nicks + ["新規登録"], key=f"nick_choice_{idx}")
+            nick_choice = st.selectbox("ニックネーム選択または新規登録(文字入力で検索可能)",
+                                    options=["(ニックネーム選択)"] + past_nicks + ["新規登録"], key=f"nick_choice_{idx}")
 
             if nick_choice == "新規登録":
-                nick = st.text_input("新しいニックネームを入力", key=f"nick_input_{idx}")
+                nick = st.text_input("新しいニックネーム入力", key=f"nick_input_{idx}")
             elif nick_choice == "(入力/選択)":
                 nick = ""
             else:
@@ -444,12 +446,13 @@ if cal_state:
                         st.rerun()
 
             elif operation == "メッセージ変更":
-                new_message = st.text_area(
+                new_message_buf = st.text_area(
                     "メッセージを入力",
                     value=r.get("message", ""),
                     key=f"message_change_{idx}",
                     height=100
                 )
+                new_message = new_message_buf.replace('\n', '<br>')
                 if st.button("変更を反映", key=f"apply_message_{idx}"):
                     df_res.at[idx, "message"] = new_message
                     save_reservations(df_res)
