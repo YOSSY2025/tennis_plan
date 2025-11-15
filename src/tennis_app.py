@@ -246,7 +246,7 @@ if cal_state:
             past_facilities = df_res['facility'].dropna().unique().tolist()
         else:
             past_facilities = []
-        facility_select = st.radio("施設を選択（新規は入力欄に入力）", options=["(選択してください)"] + past_facilities + ["新規"], index=0)
+        facility_select = st.selectbox("施設を選択（新規は入力欄に入力）", options=["(選択してください)"] + past_facilities + ["新規"], index=0)
 
         # 新規の場合だけ入力欄を表示
         if facility_select == "新規":
@@ -362,7 +362,7 @@ if cal_state:
             #past_nicksをあいうえお順にソート
             past_nicks.sort(key=lambda x: x.encode('utf-8'))
             #デフォルトは(選択してください)のメッセージをいれておく
-            nick_select = st.radio("ニックネームを選択（新規は入力欄に）", options=["(選択してください)"] + past_nicks + ["新規"], index=0)
+            nick_select = st.selectbox("ニックネームを選択（新規は入力欄に）", options=["(選択してください)"] + past_nicks + ["新規"], index=0)
 
             # 新規の場合だけ入力欄を表示
             if nick_select == "新規":
