@@ -248,12 +248,12 @@ if cal_state:
             past_facilities = df_res['facility'].dropna().unique().tolist()
         else:
             past_facilities = []
-        facility_select = st.selectbox("施設を入力or選択", options=["(入力or選択してください)"] + past_facilities + ["新規"], index=0)
+        facility_select = st.selectbox("施設を選択または新規登録(文字入力で検索可能)", options=["(施設名を選択)"] + past_facilities + ["新規"], index=0)
 
         # 新規の場合だけ入力欄を表示
         if facility_select == "新規":
             facility = st.text_input("施設名を入力")        
-        elif facility_select == "(入力/選択)" or facility_select == "" :
+        elif facility_select == "(施設名を選択)" or facility_select == "" :
             facility = ""
         else:
             facility = facility_select
@@ -374,7 +374,7 @@ if cal_state:
 
             # 選択肢 + 新規入力をまとめて一箇所で表示
             nick_choice = st.selectbox("ニックネームを選択（新規入力は「新規」選択後に下へ）",
-                                    options=["(入力/選択)"] + past_nicks + ["新規"], key=f"nick_choice_{idx}")
+                                    options=["(ニックネーム選択)"] + past_nicks + ["新規"], key=f"nick_choice_{idx}")
 
             if nick_choice == "新規":
                 nick = st.text_input("新しいニックネームを入力", key=f"nick_input_{idx}")
