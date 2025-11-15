@@ -133,120 +133,6 @@ def to_jst_date(iso_str):
             return iso_str
         return datetime.strptime(str(iso_str)[:10], "%Y-%m-%d").date()
     
-# ===== ニックネーム選択方法 =====
-def autocomplete_input(label, options, key="auto_input"):
-    st.markdown("""
-    <style>
-    .auto-wrap {
-        position: relative;
-    }
-    .auto-suggest {
-        position: absolute;
-        top: 45px;
-        width: 100%;
-        background: white;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-        max-height: 180px;
-        overflow-y: scroll;
-        z-index: 9999;
-    }
-    .auto-item {
-        padding: 8px;
-        border-bottom: 1px solid #eee;
-    }
-    .auto-item:hover {
-        background: #f0f0f0;
-        cursor: pointer;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
-    container = st.empty()
-
-    js_code = f"""
-    <script>
-    const options = {json.dumps(options)};
-
-    function createAuto() {{
-        const area = document.getElementById("auto-area");
-        if (!area) {{
-            setTimeout(createAuto, 30);
-            return;
-        }}
-
-        area.innerHTML = `
-            <div class="auto-wrap">
-                <input id="auto-input" type="text" placeholder="{label}"
-                       style="width:100%;padding:8px;font-size:16px;">
-                <div id="auto-list" class="auto-suggest" style="display:none;"></div>
-            </div>
-        `;
-
-        const input = document.getElementById("auto-input");
-        const list = document.getElementById("auto-list");
-
-        input.addEventListener("input", () => {{
-            const text = input.value;
-            const filtered = options.filter(o => o.includes(text));
-
-            if (!text || filtered.length === 0) {{
-                list.style.display = "none";
-                return;
-            }}
-
-            list.innerHTML = filtered
-                .map(o => `<div class='auto-item' onclick='selectItem("${{o}}")'>${{o}}</div>`)
-                .join("");
-
-            list.style.display = "block";
-        }});
-    }}
-
-    window.selectItem = function(value) {{
-        const input = document.getElementById("auto-input");
-        input.value = value;
-        document.getElementById("auto-list").style.display = "none";
-
-        window.parent.postMessage({{
-            key: "{key}",
-            value: value
-        }}, "*");
-    }}
-
-    // Streamlit が DOM を再描画したタイミングで呼び出す
-    setTimeout(createAuto, 50);
-    </script>
-    """
-
-    container.markdown(
-        f'<div id="auto-area"></div>{js_code}',
-        unsafe_allow_html=True
-    )
-
-    selected = st.session_state.get(key, "")
-
-    st.markdown(
-        f"""
-        <script>
-        window.addEventListener("message", (event) => {{
-            if (event.data.key === "{key}") {{
-                window.parent.postMessage({{
-                    setSessionState: {{
-                        key: "{key}",
-                        value: event.data.value
-                    }}
-                }}, "*");
-            }}
-        }});
-        </script>
-        """,
-        unsafe_allow_html=True
-    )
-
-    return st.session_state.get(key, "")
-
-
 # ===== CSSで親要素の高さを自然にする =====
 st.markdown("""
 <style>
@@ -473,11 +359,29 @@ if cal_state:
             else:
                 past_facilities = []
 
-            # ニックネーム選択
-            past_nicks = list(set([n for lst in df_res['participants'].tolist()
-                                    + df_res['absent'].tolist() for n in lst if n]))
-            past_nicks.sort(key=lambda x: x.encode("utf-8"))  # 五十音順
-            nick = autocomplete_input("ニックネームを入力",past_nicks, key=f"nick_{idx}")
+            # ---- ニックネーム入力 ----
+            past_nicks = []
+            for col in ["participants", "absent"]:
+                if col in df_res.columns:
+                    for lst in df_res[col]:
+                        if isinstance(lst, list):
+                            past_nicks.extend([n for n in lst if n])
+                        elif isinstance(lst, str) and lst.strip():
+                            past_nicks.extend(lst.split(";"))
+
+            # 一意化 & 五十音順
+            past_nicks = sorted(set(past_nicks), key=lambda s: s)
+
+            # 選択肢 + 新規入力をまとめて一箇所で表示
+            nick_choice = st.selectbox("ニックネームを選択（新規入力は下へ）",
+                                    options=["(選択してください)"] + past_nicks + ["新規"], key=f"nick_choice_{idx}")
+
+            if nick_choice == "新規":
+                nick = st.text_input("新しいニックネームを入力", key=f"nick_input_{idx}")
+            elif nick_choice == "(選択してください)":
+                nick = ""
+            else:
+                nick = nick_choice
         
 
             # 新規の場合だけ入力欄を表示
@@ -485,25 +389,22 @@ if cal_state:
             part = st.radio("参加状況", ["参加", "不参加", "削除"], key=f"part_{idx}")
 
             if st.button("反映", key=f"apply_{idx}"):
-                participants = list(r["participants"]) if isinstance(r["participants"], list) else []
-                absent = list(r["absent"]) if isinstance(r["absent"], list) else []
-
-                # まず既存から削除
-                if nick in participants:
-                    participants.remove(nick)
-                if nick in absent:
-                    absent.remove(nick)
-
-                # 反映
-                #もしnickが空文字の場合は何もしない
-                if nick == "":
+                if not nick:
                     st.warning("⚠️ ニックネームが選択されていません。")
                 else:
+                    participants = list(r["participants"]) if isinstance(r["participants"], list) else []
+                    absent = list(r["absent"]) if isinstance(r["absent"], list) else []
+
+                    # まず既存から削除
+                    if nick in participants: participants.remove(nick)
+                    if nick in absent: absent.remove(nick)
+
+                    # 反映
                     if part == "参加":
                         participants.append(nick)
                     elif part == "不参加":
                         absent.append(nick)
-                # 削除は既にリストから削除済み
+                    # 削除は既に削除済み
 
                     df_res.at[idx, "participants"] = participants
                     df_res.at[idx, "absent"] = absent
