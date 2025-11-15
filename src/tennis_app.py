@@ -248,10 +248,10 @@ if cal_state:
             past_facilities = df_res['facility'].dropna().unique().tolist()
         else:
             past_facilities = []
-        facility_select = st.selectbox("施設を選択または新規登録(文字入力で検索可能)", options=["(施設名を選択)"] + past_facilities + ["新規"], index=0)
+        facility_select = st.selectbox("施名を選択または新規登録登録(直接入力で検索可能)", options=["(施設名を選択)"] + past_facilities + ["新規登録"], index=0)
 
-        # 新規の場合だけ入力欄を表示
-        if facility_select == "新規":
+        # 新規登録の場合だけ入力欄を表示
+        if facility_select == "新規登録":
             facility = st.text_input("施設名を入力")        
         elif facility_select == "(施設名を選択)" or facility_select == "" :
             facility = ""
@@ -373,10 +373,10 @@ if cal_state:
             past_nicks = sorted(set(past_nicks), key=lambda s: s)
 
             # 選択肢 + 新規入力をまとめて一箇所で表示
-            nick_choice = st.selectbox("ニックネームを選択（新規入力は「新規」選択後に下へ）",
-                                    options=["(ニックネーム選択)"] + past_nicks + ["新規"], key=f"nick_choice_{idx}")
+            nick_choice = st.selectbox("ニックネームを選択または新規登録(文字入力で検索可能)",
+                                    options=["(ニックネームを選択)"] + past_nicks + ["新規登録"], key=f"nick_choice_{idx}")
 
-            if nick_choice == "新規":
+            if nick_choice == "新規登録":
                 nick = st.text_input("新しいニックネームを入力", key=f"nick_input_{idx}")
             elif nick_choice == "(入力/選択)":
                 nick = ""
@@ -384,7 +384,7 @@ if cal_state:
                 nick = nick_choice
         
 
-            # 新規の場合だけ入力欄を表示
+            # 新規登録の場合だけ入力欄を表示
             # 参加状況
             part = st.radio("参加状況", ["参加", "不参加", "削除"], key=f"part_{idx}")
 
