@@ -162,21 +162,23 @@ def autocomplete_input(label, options, key="auto_input"):
     </style>
     """, unsafe_allow_html=True)
 
-    # コンテナ（JavaScript が描画する領域）
     container = st.empty()
 
-    # JS の作成
     js_code = f"""
     <script>
     const options = {json.dumps(options)};
 
     function createAuto() {{
-        const container = document.getElementById("auto-area");
-        if (!container) return;
+        const area = document.getElementById("auto-area");
+        if (!area) {{
+            setTimeout(createAuto, 30);
+            return;
+        }}
 
-        container.innerHTML = `
+        area.innerHTML = `
             <div class="auto-wrap">
-                <input id="auto-input" type="text" placeholder="{label}" style="width:100%;padding:8px;font-size:16px;">
+                <input id="auto-input" type="text" placeholder="{label}"
+                       style="width:100%;padding:8px;font-size:16px;">
                 <div id="auto-list" class="auto-suggest" style="display:none;"></div>
             </div>
         `;
@@ -184,34 +186,36 @@ def autocomplete_input(label, options, key="auto_input"):
         const input = document.getElementById("auto-input");
         const list = document.getElementById("auto-list");
 
-        input.addEventListener("input", function() {{
+        input.addEventListener("input", () => {{
             const text = input.value;
             const filtered = options.filter(o => o.includes(text));
 
-            if (filtered.length === 0 || text === "") {{
+            if (!text || filtered.length === 0) {{
                 list.style.display = "none";
                 return;
             }}
 
-            list.innerHTML = filtered.map(
-                o => `<div class='auto-item' onclick='selectItem("${{o}}")'>${{o}}</div>`
-            ).join("");
+            list.innerHTML = filtered
+                .map(o => `<div class='auto-item' onclick='selectItem("${{o}}")'>${{o}}</div>`)
+                .join("");
 
             list.style.display = "block";
         }});
-
-        window.selectItem = function(value) {{
-            input.value = value;
-            list.style.display = "none";
-            window.parent.postMessage({{ key: "{key}", value: value }}, "*");
-        }};
     }}
 
-    window.addEventListener("message", (event) => {{
-        if (event.data === "create_auto") {{
-            createAuto();
-        }}
-    }});
+    window.selectItem = function(value) {{
+        const input = document.getElementById("auto-input");
+        input.value = value;
+        document.getElementById("auto-list").style.display = "none";
+
+        window.parent.postMessage({{
+            key: "{key}",
+            value: value
+        }}, "*");
+    }}
+
+    // Streamlit が DOM を再描画したタイミングで呼び出す
+    setTimeout(createAuto, 50);
     </script>
     """
 
@@ -220,21 +224,19 @@ def autocomplete_input(label, options, key="auto_input"):
         unsafe_allow_html=True
     )
 
-    # Streamlit ↔ JS 間通信
     selected = st.session_state.get(key, "")
 
     st.markdown(
         f"""
         <script>
-        window.parent.postMessage("create_auto", "*");
-        window.addEventListener("DOMContentLoaded", createAuto);
-
         window.addEventListener("message", (event) => {{
             if (event.data.key === "{key}") {{
-                window.parent.postMessage({{ setSessionState: {{
-                    key: "{key}",
-                    value: event.data.value
-                }}}}, "*");
+                window.parent.postMessage({{
+                    setSessionState: {{
+                        key: "{key}",
+                        value: event.data.value
+                    }}
+                }}, "*");
             }}
         }});
         </script>
