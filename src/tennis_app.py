@@ -453,7 +453,7 @@ if cal_state:
                     height=100
                 )
                 if st.button("変更を反映", key=f"apply_message_{idx}"):
-                    df_res.at[idx, "message"] = new_message
+                    df_res.at[idx, "message"] = new_message.replace('\n', '<br>')   
                     save_reservations(df_res)
                     st.success("イベントのメッセージを変更しました")
                     st.rerun()
