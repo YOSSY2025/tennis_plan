@@ -1,165 +1,155 @@
-# 🧭 DEVELOPMENT.md
 
-**テニスコート予約管理アプリ — 開発手順書（v1.0）**
+# **DEVELOPMENT.md（更新案）**
 
----
+## 開発手順書
 
-## ■ 開発環境構築手順
+**最終更新日：2025-11-17**
 
-| 項目           | 内容                                |
-| -------------- | ----------------------------------- |
-| 言語           | Python 3.x                          |
-| フレームワーク | Streamlit                           |
-| 主ライブラリ   | pandas, datetime, uuid              |
-| データ保存     | CSV（UTF-8, カンマ区切り）          |
-| 実行方法       | `streamlit run src/tennis_app.py` |
-| 開発環境       | GitHub + Streamlit Cloud            |
+**対象環境：Windows 11 / Python 3.12.4 / Streamlit Community Cloud**
 
 ---
 
-## ■ ディレクトリ構成（再掲）
+## 1. 開発環境
 
-project_root/
+### 1-1. OS
 
-├─ docs/
+* **Windows 11**
 
-│   ├─ SPECIFICATION.md
+### 1-2. Python
 
-│   ├─ BACKLOG.md
+* **Python 3.12.4**
+* 推奨パッケージ管理：`venv`（標準）
 
-│   ├─ DATA_SPEC.md
+  ※必須ではないが、仮想環境利用を推奨
 
-│   ├─ DEVELOPMENT.md
+### 1-3. 推奨エディタ
 
-│   ├─ UI_FLOW.md
-
-│   └─ DOCUMENTS.md
-
-├─ src/
-
-│   └─ tennis_app.py
-
-├─ data/
-
-│   └─ reservations.csv
-
-├─ tests/
-
-└─ README.md
-
-## ■ アプリ構成概要
-
-| モジュール           | 役割         | 主な関数・処理                     |
-| -------------------- | ------------ | ---------------------------------- |
-| `tennis_app.py`    | メインアプリ | 画面制御・状態管理・CSV入出力      |
-| `reservations.csv` | データ保持   | アプリ起動時にロード／更新時に保存 |
-
-## ■ データ処理フロー
-
-| フェーズ          | 処理内容                               | 実装方法（想定）                                    |
-| ----------------- | -------------------------------------- | --------------------------------------------------- |
-| 1. 起動時         | `reservations.csv` 読み込み          | `pandas.read_csv()`                               |
-| 2. カレンダー表示 | 日付別にデータを整形し表示             | groupby(date)                                       |
-| 3. 登録・編集     | フォーム入力をDataFrameに追加／更新    | `df.append()` または `df.loc[]`                 |
-| 4. 削除           | 対象ID行を削除                         | `df.drop()`                                       |
-| 5. 自動完了化     | 今日の日付より前の予約を完了扱いに変更 | `if date < today: status = "完了"`                |
-| 6. 保存           | DataFrameをCSVに書き戻し               | `df.to_csv("data/reservations.csv", index=False)` |
+* Visual Studio Code
+  * 拡張機能：Python、Pylance、GitHub Copilot（任意）
 
 ---
 
-## ■ UIイベント設計（概要）
+## 2. 主要ライブラリ
 
-| イベント               | 動作                       | 備考             |
-| ---------------------- | -------------------------- | ---------------- |
-| カレンダー日付クリック | 該当日の詳細モーダルを開く | 新規／編集両対応 |
-| 予約登録ボタン押下     | CSVへ追記・保存            | UUID発行         |
-| 削除ボタン押下         | 確認ダイアログ表示後に削除 | 誤操作防止       |
-| ステータス更新         | 日次チェックで自動実行     | 起動時にも反映   |
-| 参加表明入力           | 該当予約に紐づけて人数更新 | 参加〇・不参加× |
+| ライブラリ名              | 用途                       |
+| ------------------------- | -------------------------- |
+| **streamlit**       | UI・画面構築               |
+| **pandas**          | 予約データの読み込み・加工 |
+| **gspread**         | Google Sheets 読み書き     |
+| **oauth2client**    | Google API 認証            |
+| **python-dotenv**   | API鍵の環境変数管理        |
+| **plotly** （任意） | 統計グラフ表示（将来機能） |
 
----
+### インストール例
 
-## ■ 今後の拡張予定（次フェーズ対応）
-
-| 優先度 | 機能                | 概要                                      |
-| :----: | ------------------- | ----------------------------------------- |
-| ★★★ | 抽選期間管理        | 別CSV（lottery_period.csv）による期間表示 |
-| ★★☆ | バックアップ機能    | 定期的にCSVを自動保存                     |
-| ★☆☆ | Google Calendar API | 外部連携機能（v3以降）                    |
-
----
-
-## ■ 開発フロー（運用手順）
-
-1. ブランチ作成（例：`feature/calendar-ui`）
-2. 機能単位でコミット
-3. 動作確認後、`main` にマージ
-4. Streamlit Cloudでデプロイ確認
-5. GitHubでドキュメント更新
-
-
-
-## 🔧 GoogleサービスアカウントJSONファイルの取得・保存手順
-
-| ステップ | 操作内容                                                                     | 備考                                     |
-| -------- | ---------------------------------------------------------------------------- | ---------------------------------------- |
-| ①       | [Google Cloud Console](https://console.cloud.google.com/)にログイン             | 同じGoogleアカウントで                   |
-| ②       | 上部のプロジェクト選択で、対象プロジェクトを開く                             | スプレッドシートを操作したいプロジェクト |
-| ③       | 左のメニューで**「IAMと管理」→「サービスアカウント」**を開く                |                                          |
-| ④       | 右上の**「＋サービスアカウントを作成」**をクリック                           |                                          |
-| ⑤       | 任意の名前を入力 → 「作成して続行」                                         | 例：`streamlit-access`                 |
-| ⑥       | ロールを追加 → 「プロジェクト」→「編集者」または「スプレッドシート編集者」 | 後から調整可                             |
-| ⑦       | 「完了」→ 一覧に新しいアカウントが追加される                                |                                          |
-| ⑧       | そのアカウントの右側「︙」→**「鍵を管理」**をクリック                       |                                          |
-| ⑨       | 「鍵を追加」→**「新しい鍵を作成」→「JSON」**を選択                         | 自動的にダウンロードされる               |
-| ⑩       | ダウンロードされたファイルを、プロジェクト内に保存                           | 例：`src/service_account.json`         |
-
----
-
-## 📁 保存例（あなたのプロジェクト構成）
-
-<pre class="overflow-visible!" data-start="710" data-end="834"><div class="contain-inline-size rounded-2xl relative bg-token-sidebar-surface-primary"><div class="sticky top-9"><div class="absolute end-0 bottom-0 flex h-9 items-center pe-2"><div class="bg-token-bg-elevated-secondary text-token-text-secondary flex items-center gap-4 rounded-sm px-2 font-sans text-xs"></div></div></div><div class="overflow-y-auto p-4" dir="ltr"><code class="whitespace-pre!"><span><span>tennis_plan/
-├─ </span><span>src</span><span>/
-│   ├─ tennis_app</span><span>.py</span><span>
-│   ├─ service_account</span><span>.json</span><span>  ←★ ここに置く
-│
-└─ </span><span>.streamlit</span><span>/
-    └─ secrets</span><span>.toml</span><span>
+<pre class="overflow-visible!" data-start="743" data-end="818"><div class="contain-inline-size rounded-2xl relative bg-token-sidebar-surface-primary"><div class="sticky top-9"><div class="absolute end-0 bottom-0 flex h-9 items-center pe-2"><div class="bg-token-bg-elevated-secondary text-token-text-secondary flex items-center gap-4 rounded-sm px-2 font-sans text-xs"></div></div></div><div class="overflow-y-auto p-4" dir="ltr"><code class="whitespace-pre! language-bash"><span><span>pip install streamlit pandas gspread oauth2client python-dotenv
 </span></span></code></div></div></pre>
 
 ---
 
-## 🧩 secrets.toml の記述例
+## 3. Google Drive / Google Sheets 連携設定
 
-<pre class="overflow-visible!" data-start="866" data-end="963"><div class="contain-inline-size rounded-2xl relative bg-token-sidebar-surface-primary"><div class="sticky top-9"><div class="absolute end-0 bottom-0 flex h-9 items-center pe-2"><div class="bg-token-bg-elevated-secondary text-token-text-secondary flex items-center gap-4 rounded-sm px-2 font-sans text-xs"></div></div></div><div class="overflow-y-auto p-4" dir="ltr"><code class="whitespace-pre! language-toml"><span><span>[google]</span><span>
-</span><span>service_account_file</span><span> = </span><span>"src/service_account.json"</span><span>
-</span><span>sheet_id</span><span> = </span><span>"ここにスプレッドシートID"</span><span>
-</span></span></code></div></div></pre>
+
+### 3-1. Google Cloud Console の準備
+
+1. [https://console.cloud.google.com](https://console.cloud.google.com) にアクセス
+2. 新規プロジェクトを作成
+3. 「APIとサービス」→「APIとサービスの有効化」
+
+   * **Google Drive API**
+   * **Google Sheets API**
+
+     を有効化する
+4. 「認証情報」→「サービスアカウント」を作成
+5. 「鍵を追加」→JSON形式でダウンロード
+
+   → `service_account.json` を `project_root/.credentials/` に保存
 
 ---
 
-## 🧠 Python側（tennis_app.py）
+### 3-2. Sheets の共有設定
 
-<pre class="overflow-visible!" data-start="1000" data-end="1398"><div class="contain-inline-size rounded-2xl relative bg-token-sidebar-surface-primary"><div class="sticky top-9"><div class="absolute end-0 bottom-0 flex h-9 items-center pe-2"><div class="bg-token-bg-elevated-secondary text-token-text-secondary flex items-center gap-4 rounded-sm px-2 font-sans text-xs"></div></div></div><div class="overflow-y-auto p-4" dir="ltr"><code class="whitespace-pre! language-python"><span><span>import</span><span> streamlit </span><span>as</span><span> st
-</span><span>from</span><span> google.oauth2 </span><span>import</span><span> service_account
-</span><span>import</span><span> gspread
+予約データを保存している Google Sheets を開き、
 
-</span><span># 認証</span><span>
-service_account_file = st.secrets[</span><span>"google"</span><span>][</span><span>"service_account_file"</span><span>]
-creds = service_account.Credentials.from_service_account_file(service_account_file)
+**サービスアカウントのメールアドレス** を *閲覧者 or 編集者* として追加。
+
+---
+
+### 3-3. Python 側での読み込み例
+
+<pre class="overflow-visible!" data-start="1344" data-end="1820"><div class="contain-inline-size rounded-2xl relative bg-token-sidebar-surface-primary"><div class="sticky top-9"><div class="absolute end-0 bottom-0 flex h-9 items-center pe-2"><div class="bg-token-bg-elevated-secondary text-token-text-secondary flex items-center gap-4 rounded-sm px-2 font-sans text-xs"></div></div></div><div class="overflow-y-auto p-4" dir="ltr"><code class="whitespace-pre! language-python"><span><span>import</span><span> gspread
+</span><span>from</span><span> oauth2client.service_account </span><span>import</span><span> ServiceAccountCredentials
+</span><span>import</span><span> pandas </span><span>as</span><span> pd
+
+scope = [</span><span>"https://www.googleapis.com/auth/spreadsheets"</span><span>,
+         </span><span>"https://www.googleapis.com/auth/drive"</span><span>]
+
+creds = ServiceAccountCredentials.from_json_keyfile_name(
+    </span><span>".credentials/service_account.json"</span><span>,
+    scope
+)
 client = gspread.authorize(creds)
 
-</span><span># スプレッドシート接続</span><span>
-sheet = client.open_by_key(st.secrets[</span><span>"google"</span><span>][</span><span>"sheet_id"</span><span>])
-worksheet = sheet.sheet1  </span><span># 例：1枚目のシート</span><span>
+sheet = client.</span><span>open</span><span>(</span><span>"tennis_reservations"</span><span>).sheet1
+
+data = sheet.get_all_records()
+df = pd.DataFrame(data)
 </span></span></code></div></div></pre>
 
 ---
 
-この構成なら、**ローカル実行でも Streamlit Cloud でも動作します。**
+## 4. アプリの実行
 
-（Streamlit Cloud にデプロイする際は、同じJSONファイルを `.streamlit/secrets.toml` にアップロードして指定するだけ）
+### 4-1. ローカル実行方法
+
+<pre class="overflow-visible!" data-start="1860" data-end="1903"><div class="contain-inline-size rounded-2xl relative bg-token-sidebar-surface-primary"><div class="sticky top-9"><div class="absolute end-0 bottom-0 flex h-9 items-center pe-2"><div class="bg-token-bg-elevated-secondary text-token-text-secondary flex items-center gap-4 rounded-sm px-2 font-sans text-xs"></div></div></div><div class="overflow-y-auto p-4" dir="ltr"><code class="whitespace-pre! language-bash"><span><span>streamlit run src/tennis_app.py
+</span></span></code></div></div></pre>
+
+### 4-2. ローカル実行時の構成
+
+<pre class="overflow-visible!" data-start="1926" data-end="2073"><div class="contain-inline-size rounded-2xl relative bg-token-sidebar-surface-primary"><div class="sticky top-9"><div class="absolute end-0 bottom-0 flex h-9 items-center pe-2"><div class="bg-token-bg-elevated-secondary text-token-text-secondary flex items-center gap-4 rounded-sm px-2 font-sans text-xs"></div></div></div><div class="overflow-y-auto p-4" dir="ltr"><code class="whitespace-pre!"><span><span>project_root/
+├─ src/
+│   └─ tennis_app.py
+├─ docs/
+│   └─ …
+├─ .credentials/
+│   └─ service_account.json
+└─ .</span><span>env</span><span> （Google Sheets のシート名等を管理）
+</span></span></code></div></div></pre>
 
 ---
 
-（最終更新：2025年11月）
+## 5. デプロイ（Streamlit Community Cloud）
+
+### 5-1. 前提
+
+* ソースを GitHub リポジトリに push 済みであること
+
+### 5-2. 手順
+
+1. [https://streamlit.io/cloud](https://streamlit.io/cloud) にアクセス
+2. 「New app」→ GitHub リポジトリを選択
+3. Main ブランチ / `src/tennis_app.py` を指定
+4. Secrets に Google API 情報を登録
+   * `GOOGLE_SERVICE_ACCOUNT_JSON`（サービスアカウントJSON丸ごと）
+   * `SHEET_NAME`
+5. デプロイ開始 → 数十秒で公開される
+
+---
+
+## 6. バージョン管理（Git）
+
+### 6-1. ブランチ構成
+
+| ブランチ名  | 用途                 |
+| ----------- | -------------------- |
+| `main`    | 本番デプロイブランチ |
+| `dev`     | 日々の開発用         |
+| feature/xxx | 個別の機能開発       |
+
+---
+
+## 7. 今後の追加予定（メモ）
+
+* Docker 化（必要になった時点で）
+* デプロイ自動化（GitHub Actions）
