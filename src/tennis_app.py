@@ -377,16 +377,11 @@ if cal_state:
             ステータス: {r['status']}<br>
             時間:<br> &nbsp;&nbsp;{int(safe_int(r['start_hour'])):02d}:{int(safe_int(r['start_minute'])):02d} - {int(safe_int(r['end_hour'])):02d}:{int(safe_int(r['end_minute'])):02d}<br>
             参加者:<br> &nbsp;&nbsp;{', '.join(r['participants']) if r['participants'] else 'なし'}<br>
-            不参加:<br> &nbsp;&nbsp;{', '.join(r['absent']) if r['absent'] else 'なし'}<br>
             保留:<br> &nbsp;&nbsp;{', '.join(r['consider']) if 'consider' in r and r['consider'] else 'なし'}<br>
             メッセージ:<br> &nbsp;&nbsp;{r['message'] if pd.notna(r.get('message')) and r['message'] else '（なし）'}
             """, unsafe_allow_html=True)
 
             past_nicks = []
-<<<<<<< HEAD
-=======
-            # 参加・不参加・保留 の全リストからニックネーム履歴を取得
->>>>>>> parent of 946cfd8 (Update tennis_app.py)
             for col in ["participants", "absent", "consider"]:
                 if col in df_res.columns:
                     for lst in df_res[col]:
@@ -403,12 +398,7 @@ if cal_state:
             elif nick_choice != default_option:
                 nick = nick_choice
         
-<<<<<<< HEAD
             part = st.radio("参加状況", ["参加", "保留", "削除"], key=f"part_{idx}")
-=======
-            # ラジオボタンに「保留」を追加
-            part = st.radio("参加状況", ["参加", "不参加", "保留", "削除"], key=f"part_{idx}")
->>>>>>> parent of 946cfd8 (Update tennis_app.py)
 
             if st.button("反映", key=f"apply_{idx}"):
                 if not nick:
@@ -422,19 +412,8 @@ if cal_state:
                     if nick in absent: absent.remove(nick)
                     if nick in consider: consider.remove(nick)
 
-<<<<<<< HEAD
                     if part == "参加": participants.append(nick)
                     elif part == "保留": consider.append(nick)
-=======
-                    # 2. 選択されたリストへ追加
-                    if part == "参加":
-                        participants.append(nick)
-                    elif part == "不参加":
-                        absent.append(nick)
-                    elif part == "保留":
-                        consider.append(nick)
-                    # 削除の場合は何もしない
->>>>>>> parent of 946cfd8 (Update tennis_app.py)
 
                     df_res.at[idx, "participants"] = participants
                     df_res.at[idx, "absent"] = absent
