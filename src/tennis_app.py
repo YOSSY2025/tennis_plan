@@ -137,7 +137,7 @@ def load_lottery_data_cached():
 
 def check_and_show_reminders():
     df = load_lottery_data_cached()
-    if df.empty: return
+    if df.empty: return []
 
     jst_now = datetime.utcnow() + timedelta(hours=9)
     today = jst_now.date()
@@ -176,9 +176,7 @@ def check_and_show_reminders():
 
         if is_match: messages_to_show.append(msg)
 
-    if messages_to_show:
-        for m in messages_to_show:
-            st.info(f"🔔 {m}", icon="📢")
+    return messages_to_show
 
 
 # ==========================================
@@ -228,7 +226,17 @@ div[data-testid="stDialog"] button[aria-label="Close"] {
 
 st.markdown("<h3>🎾 テニスコート予約管理</h3>", unsafe_allow_html=True)
 
-check_and_show_reminders()
+# お知らせをトグルに表示
+reminder_messages = check_and_show_reminders()
+if reminder_messages:
+    with st.expander("📢 お知らせ", expanded=False):
+        for m in reminder_messages:
+            st.info(m)
+
+# 成功メッセージの表示（toastを使用）
+if 'show_success_message' in st.session_state and st.session_state['show_success_message']:
+    st.toast(st.session_state['show_success_message'], icon="✅")
+    st.session_state['show_success_message'] = None
 
 df_res = load_reservations()
 
@@ -320,7 +328,7 @@ if view_mode == "📅 カレンダー":
             "contentHeight": "auto",
             "aspectRatio": 1.2,
             "titleFormat": {"year": "numeric", "month": "2-digit"},
-            "longPressDelay": 200 
+            "longPressDelay": 500 
         },
         key=f"calendar_{cal_key}"
     )
@@ -560,7 +568,11 @@ def entry_form_dialog(mode, idx=None, date_str=None):
                     current_df = load_reservations()
                     updated_df = pd.concat([current_df, pd.DataFrame([new_row])], ignore_index=True)
                     save_reservations(updated_df)
-                    st.success("登録しました")
+                    st.session_state['show_success_message'] = '登録しました'
+                    st.session_state['is_popup_open'] = False
+                    st.session_state['last_click_signature'] = None
+                    st.session_state['active_event_idx'] = None
+                    st.session_state['list_reset_counter'] += 1
                     st.rerun()
         with col_close:
             if st.button("閉じる", use_container_width=True):
@@ -576,7 +588,7 @@ def entry_form_dialog(mode, idx=None, date_str=None):
     # --- B. 編集モード ---
     elif mode == "edit" and idx is not None:
         if idx not in df_res.index:
-            st.error("このイベントは削除されています")
+            st.error("イベントが削除されました。")
             if st.button("閉じる"):
                 st.session_state['is_popup_open'] = False
                 # ▼この3つがあれば完璧です
@@ -683,7 +695,11 @@ def entry_form_dialog(mode, idx=None, date_str=None):
                     current_df = load_reservations()
                     current_df = current_df.drop(idx).reset_index(drop=True)
                     save_reservations(current_df)
-                    st.success("削除しました")
+                    st.session_state['show_success_message'] = '削除しました'
+                    st.session_state['is_popup_open'] = False
+                    st.session_state['last_click_signature'] = None
+                    st.session_state['active_event_idx'] = None
+                    st.session_state['list_reset_counter'] += 1
                     st.rerun()
 
 
