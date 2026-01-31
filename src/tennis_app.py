@@ -337,6 +337,42 @@ if 'show_success_message' in st.session_state and st.session_state['show_success
 
 df_res = load_reservations()
 
+# --- 自動完了: 前日のイベントを完了にする（負荷対策として1回/日） ---
+def auto_complete_yesterday_events():
+    """前日分のイベントをステータス「完了」に変更する。
+
+    - 同日に既に処理済みなら何もしない（セッションフラグで抑制）
+    - 処理時は最新データを読み直して、昨日の未完了イベントのみを更新する（競合緩和）
+    """
+    today_jst = (datetime.utcnow() + timedelta(hours=9)).date()
+    yesterday = today_jst - timedelta(days=1)
+
+    # 同日に既に処理済みなら何もしない
+    if st.session_state.get('auto_completed_for_date') == str(yesterday):
+        return
+
+    # 最新データを読み込み
+    latest_df = load_reservations()
+    if latest_df.empty:
+        st.session_state['auto_completed_for_date'] = str(yesterday)
+        return
+
+    # dateが昨日かつstatusが完了でない行を検出
+    mask = (latest_df['date'] == yesterday) & (latest_df['status'] != '完了')
+    cnt = int(mask.sum())
+    if cnt > 0:
+        latest_df.loc[mask, 'status'] = '完了'
+        save_reservations(latest_df)
+        # 通知は不要のため表示しない
+
+    # 処理済み日をセッションに保管
+    st.session_state['auto_completed_for_date'] = str(yesterday)
+
+# 実行（同日複数回の保存を防ぐためセッションフラグを利用）
+auto_complete_yesterday_events()
+# 必要なら最新データを再読み込みして描画に反映
+df_res = load_reservations()
+
 # リストの選択状態をクリアするためのカウンター
 if 'list_reset_counter' not in st.session_state:
     st.session_state['list_reset_counter'] = 0
@@ -501,6 +537,7 @@ elif view_mode == "📋 予約リスト":
             on_select="rerun",
             selection_mode="single-row",
             key=table_key,
+            height="auto",
             column_config={
                 "日時": st.column_config.TextColumn("日時", width="medium"),
                 "施設": st.column_config.TextColumn("施設", width="medium"),
