@@ -576,19 +576,24 @@ elif view_mode == "実績":
         participant_options = ["全体"] + sorted(list(all_participants))
         selected_person = st.selectbox("表示対象", participant_options, key="stats_person_select")
         
-        # 期間選択（デフォルト: 全期間）
+        # 期間選択（デフォルト: 全期間だが終了日は今月まで）
+        import calendar
+        today = datetime.now()
+        last_day_of_month = calendar.monthrange(today.year, today.month)[1]
+        default_end_date = date(today.year, today.month, last_day_of_month)
+        
         use_date_range = st.checkbox("期間を指定する", value=False, key="stats_use_date_range")
         if use_date_range:
             col1, col2 = st.columns(2)
             min_date = df_stats['date'].min()
-            max_date = df_stats['date'].max()
+            max_date = default_end_date  # 今月まで
             with col1:
                 start_date = st.date_input("開始日", value=min_date, min_value=min_date, max_value=max_date, key="stats_start_date")
             with col2:
                 end_date = st.date_input("終了日", value=max_date, min_value=min_date, max_value=max_date, key="stats_end_date")
         else:
             start_date = df_stats['date'].min()
-            end_date = df_stats['date'].max()
+            end_date = default_end_date  # 今月まで
         
         # フィルタリング
         df_filtered = df_stats.copy()
