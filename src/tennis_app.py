@@ -409,8 +409,8 @@ def auto_complete_yesterday_events():
         st.session_state['auto_completed_for_date'] = str(yesterday)
         return
 
-    # dateが昨日かつstatusが完了でない行を検出
-    mask = (latest_df['date'] == yesterday) & (latest_df['status'] != '完了')
+    # dateが昨日かつstatusが完了/中止でない行を検出
+    mask = (latest_df['date'] == yesterday) & (~latest_df['status'].isin(['完了', '中止']))
     cnt = int(mask.sum())
     if cnt > 0:
         latest_df.loc[mask, 'status'] = '完了'
@@ -1174,7 +1174,7 @@ def entry_form_dialog(mode, idx=None, date_str=None):
 
                 st.rerun()
 
-        with st.expander("イベント管理メニュー（編集・削除）"):
+        with st.expander("イベント編集・削除"):
             edit_tab, delete_tab = st.tabs(["編集", "削除"])
             with edit_tab:
                 new_msg = st.text_area("メモの編集", value=r.get("message", "").replace('<br>', '\n'))
